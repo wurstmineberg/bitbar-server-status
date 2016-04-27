@@ -51,9 +51,11 @@ for wmb_id in status['list']:
         slack_url = None
 
     if 'favColor' in people['people'].get(wmb_id, {}):
-        color = ' color=#' + hex(people['people'][wmb_id]['favColor']['red'])[2:]
-        color += hex(people['people'][wmb_id]['favColor']['green'])[2:]
-        color += hex(people['people'][wmb_id]['favColor']['blue'])[2:]
+        color = ' color=#%02x%02x%02x' % (
+                people['people'][wmb_id]['favColor']['red'],
+                people['people'][wmb_id]['favColor']['green'],
+                people['people'][wmb_id]['favColor']['blue'],
+                )
     else:
         color = ''
     print('{}|href=https://wurstmineberg.de/people/{}{}{}'.format(display_name, wmb_id, color, img_str))
