@@ -9,7 +9,7 @@ print(len(status['list']))
 
 print('---')
 print('Version: {ver}|color=gray'.format(ver=status['version']))
-print('Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver} color=gray'.format(ver=status['version']))
+print('Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'.format(ver=status['version']))
 for wmb_id in status['list']:
     display_name = people['people'].get(wmb_id, {}).get('name', wmb_id)
     if people['people'].get(wmb_id, False) and people['people'][wmb_id].get('slack', False):
@@ -23,3 +23,4 @@ for wmb_id in status['list']:
 
 print('---')
 print('Start Minecraft | bash=/usr/bin/open param1=-a param2=Minecraft terminal=false')
+print('Start TeamSpeak | alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 3 Client" terminal=false')
