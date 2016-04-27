@@ -12,3 +12,6 @@ print('Version: {}|color=gray'.format(status['version']))
 for wmb_id in status['list']:
     display_name = people['people'].get(wmb_id, {}).get('name', wmb_id)
     print('{}|href=https://wurstmineberg.de/people/{} color=#2889be'.format(display_name, wmb_id))
+
+print('---')
+print('Start Minecraft | bash=/usr/bin/open param1=-a param2=Minecraft terminal=false')
