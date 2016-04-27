@@ -8,7 +8,7 @@ status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/statu
 print(len(status['list']))
 
 print('---')
-print('Version: {}|color=gray'.format(status['version']))
+print('Version: {ver}|href=http://minecraft.gamepedia.com/{ver} color=gray'.format(ver=status['version']))
 for wmb_id in status['list']:
     display_name = people['people'].get(wmb_id, {}).get('name', wmb_id)
     if people['people'].get(wmb_id, False) and people['people'][wmb_id].get('slack', False):
