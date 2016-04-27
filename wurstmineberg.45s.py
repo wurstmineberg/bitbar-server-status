@@ -24,7 +24,6 @@ def get_img_str(wmb_id):
         bfr = BytesIO()
         i.save(bfr, format="PNG")
         cache[wmb_id] = base64.b64encode(bfr.getvalue()).decode()
-        print(cache)
         with open(wurstbit_file, 'w') as f:
             json.dump(cache, f)
         return ' image=' + cache[wmb_id]
