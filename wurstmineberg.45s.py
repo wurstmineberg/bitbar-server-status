@@ -19,3 +19,6 @@ for wmb_id in status['list']:
     print('{}|href=https://wurstmineberg.de/people/{} color=#2889be'.format(display_name, wmb_id))
     if slack_url is not None:
         print('@{}|alternate=true href={} color=red'.format(slack_name, slack_url))
+
+print('---')
+print('Start Minecraft | bash=/usr/bin/open param1=-a param2=Minecraft terminal=false')
