@@ -21,4 +21,5 @@ for wmb_id in status['list']:
         print('@{}|alternate=true href={} color=red'.format(slack_name, slack_url))
 
 print('---')
-print('Start Minecraft | bash=/usr/bin/open param1=-a param2=Minecraft terminal=false')
+print('Start Minecraft|bash=/usr/bin/open param1=-a param2=Minecraft terminal=false')
+print('Start TeamSpeak|alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 3 Client" terminal=false')
