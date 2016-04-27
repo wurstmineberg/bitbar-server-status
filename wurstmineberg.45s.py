@@ -11,4 +11,11 @@ print('---')
 print('Version: {}|color=gray'.format(status['version']))
 for wmb_id in status['list']:
     display_name = people['people'].get(wmb_id, {}).get('name', wmb_id)
+    if people['people'].get(wmb_id, False) and people['people'][wmb_id].get('slack', False):
+        slack_name = people['people'][wmb_id]['slack']['username']
+        slack_url = 'https://wurstmineberg.slack.com/messages/@' + slack_name
+    else:
+        slack_url = None
     print('{}|href=https://wurstmineberg.de/people/{} color=#2889be'.format(display_name, wmb_id))
+    if slack_url is not None:
+        print('@{}|alternate=true href={} color=red'.format(slack_name, slack_url))
