@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 
 import os
+import sys
 import os.path
 import json
 import base64
@@ -28,7 +29,10 @@ def get_img_str(wmb_id):
     if wmb_id in cache:
         return ' image=' + cache[wmb_id]
     elif 'gravatar' in people['people'].get(wmb_id, {}):
-        r = requests.get(people['people'][wmb_id]['gravatar'])
+        try:
+            r = requests.get(people['people'][wmb_id]['gravatar'])
+        except:
+            return ''  # don't fail if we can't get an image
         i = Image.open(BytesIO(r.content))
         i = i.resize((16,16))
         bfr = BytesIO()
@@ -40,10 +44,16 @@ def get_img_str(wmb_id):
     else:
         return ''
 
-people = requests.get('https://api.wurstmineberg.de/v2/people.json').json()
-status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json').json()
-
 wurstpick="""iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=="""
+
+try:
+    people = requests.get('https://api.wurstmineberg.de/v2/people.json').json()
+    status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json').json()
+except:  # for some reason not reachable
+    print('?|templateImage={}'.format(wurstpick))
+    sys.exit(0)
+
+
 
 print('{}|templateImage={}'.format(len(status['list']), wurstpick))
 print('---')
