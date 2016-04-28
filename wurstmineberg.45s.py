@@ -13,7 +13,7 @@ import os.path
 import requests
 
 CONFIG = basedir.config_dirs('bitbar/plugins/wurstmineberg.json').json()
-CACHE = basedir.data_dirs('bitbar/plugin-cache/wurstmineberg/gravatars.json').lazy_json()
+CACHE = basedir.data_dirs('bitbar/plugin-cache/wurstmineberg/gravatars.json').lazy_json(existing_only=True, default={})
 
 people = requests.get('https://api.wurstmineberg.de/v2/people.json').json()
 status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json').json()
