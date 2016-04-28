@@ -1,5 +1,6 @@
 #!/usr/local/bin/python3
 
+import os
 import os.path
 import json
 import base64
@@ -7,9 +8,18 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-wurstbit_file = os.path.expanduser('~') + '/.wurstbit-gravatar-cache.json'
-if os.path.isfile(wurstbit_file):
-    with open(wurstbit_file) as f:
+wurstbit_dir = os.path.expanduser('~') + '/.config/wmb-bitbar/'
+gravatar_file = 'gravatar_cache.json'
+config_file = 'config.json'
+if not os.path.isdir(wurstbit_dir):
+    os.makedirs(wurstbit_dir)
+if os.path.isfile(wurstbit_dir + config_file):
+    with open(wurstbit_dir + config_file) as f:
+        config = json.load(f)
+else:
+    config = {}
+if os.path.isfile(wurstbit_dir + gravatar_file):
+    with open(wurstbit_dir + gravatar_file) as f:
         cache = json.load(f)
 else:
     cache = {}
@@ -24,7 +34,7 @@ def get_img_str(wmb_id):
         bfr = BytesIO()
         i.save(bfr, format="PNG")
         cache[wmb_id] = base64.b64encode(bfr.getvalue()).decode()
-        with open(wurstbit_file, 'w') as f:
+        with open(wurstbit_dir + gravatar_file, 'w') as f:
             json.dump(cache, f)
         return ' image=' + cache[wmb_id]
     else:
@@ -37,8 +47,12 @@ wurstpick="""iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAA
 
 print('{}|templateImage={}'.format(len(status['list']), wurstpick))
 print('---')
-print('Version: {ver}|color=gray'.format(ver=status['version']))
-print('Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'.format(ver=status['version']))
+if config.get('always_show_version_link', False):
+    print('Version: {ver}|href=http://minecraft.gamepedia.com/{ver}'.format(ver=status['version']))
+else:
+    print('Version: {ver}|color=gray'.format(ver=status['version']))
+    print('Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'.format(ver=status['version']))
+
 for wmb_id in status['list']:
     img_str = get_img_str(wmb_id)
 
