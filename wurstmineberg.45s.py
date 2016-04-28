@@ -20,7 +20,7 @@ status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/statu
 
 def get_img_str(wmb_id):
     if wmb_id in CACHE:
-        return ' image=' + CACHE[wmb_id]
+        return ' image={}'.format(CACHE[wmb_id])
     elif 'gravatar' in people['people'].get(wmb_id, {}):
         r = requests.get(people['people'][wmb_id]['gravatar'])
         i = Image.open(io.BytesIO(r.content)).resize((16,16))
