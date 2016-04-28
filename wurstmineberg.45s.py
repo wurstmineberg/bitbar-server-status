@@ -23,7 +23,7 @@ def get_img_str(wmb_id):
         return ' image=' + CACHE[wmb_id]
     elif 'gravatar' in people['people'].get(wmb_id, {}):
         r = requests.get(people['people'][wmb_id]['gravatar'])
-        i = Image.open(BytesIO(r.content)).resize((16,16))
+        i = Image.open(io.BytesIO(r.content)).resize((16,16))
         buf = io.BytesIO()
         i.save(buf, format='PNG')
         CACHE[wmb_id] = base64.b64encode(buf.getvalue()).decode()
