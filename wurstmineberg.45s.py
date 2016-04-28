@@ -27,7 +27,7 @@ def get_img_str(wmb_id):
         buf = io.BytesIO()
         i.save(buf, format='PNG')
         CACHE[wmb_id] = base64.b64encode(buf.getvalue()).decode()
-        return ' image=' + CACHE[wmb_id]
+        return ' image={}'.format(CACHE[wmb_id])
     else:
         return ''
 
