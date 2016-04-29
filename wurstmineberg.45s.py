@@ -8,17 +8,12 @@ import base64
 import requests
 from PIL import Image
 from io import BytesIO
+from collections import defaultdict
 
 wurstbit_dir = os.path.expanduser('~') + '/.config/wmb-bitbar/'
 gravatar_file = 'gravatar_cache.json'
-config_file = 'config.json'
 if not os.path.isdir(wurstbit_dir):
     os.makedirs(wurstbit_dir)
-if os.path.isfile(wurstbit_dir + config_file):
-    with open(wurstbit_dir + config_file) as f:
-        config = json.load(f)
-else:
-    config = {}
 if os.path.isfile(wurstbit_dir + gravatar_file):
     with open(wurstbit_dir + gravatar_file) as f:
         cache = json.load(f)
@@ -44,25 +39,30 @@ def get_img_str(wmb_id):
     else:
         return ''
 
-wurstpick="""iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=="""
+message = '''{num}|templateImage=iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=={numcolor}
+---
+Version: {ver}|color=gray
+Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'
+{playerlist}
+---
+Start Minecraft | bash=/usr/bin/open param1=-a param2=Minecraft terminal=false
+Start TeamSpeak | alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 3 Client" terminal=false'''
+
+mappings = defaultdict(str)
 
 try:
     people = requests.get('https://api.wurstmineberg.de/v2/people.json').json()
     status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json').json()
 except:  # for some reason not reachable
-    print('?|templateImage={}'.format(wurstpick))
+    mappings['num'] = '?'
+    mappings['playerlist'] = 'No internet connection|color=gray'
+    print(message.format(**mappings))
     sys.exit(0)
 
 
+mappings['num'] = len(status['list'])
 
-print('{}|templateImage={}'.format(len(status['list']), wurstpick))
-print('---')
-if config.get('always_show_version_link', False):
-    print('Version: {ver}|href=http://minecraft.gamepedia.com/{ver}'.format(ver=status['version']))
-else:
-    print('Version: {ver}|color=gray'.format(ver=status['version']))
-    print('Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'.format(ver=status['version']))
-
+playerlist = ""
 for wmb_id in status['list']:
     img_str = get_img_str(wmb_id)
 
@@ -79,12 +79,13 @@ for wmb_id in status['list']:
                 people['people'][wmb_id]['favColor']['green'],
                 people['people'][wmb_id]['favColor']['blue'],
                 )
+        if mappings['num'] == 1:
+            mappings['numcolor'] = color
     else:
         color = ''
-    print('{}|href=https://wurstmineberg.de/people/{}{}{}'.format(display_name, wmb_id, color, img_str))
+    playerlist += '{}|href=https://wurstmineberg.de/people/{}{}{}\n'.format(display_name, wmb_id, color, img_str)
     if slack_url is not None:
-        print('@{}|alternate=true href={} color=red {}'.format(slack_name, slack_url, img_str))
+        playerlist += '@{}|alternate=true href={} color=red {}\n'.format(slack_name, slack_url, img_str)
+mappings['playerlist'] = playerlist
 
-print('---')
-print('Start Minecraft | bash=/usr/bin/open param1=-a param2=Minecraft terminal=false')
-print('Start TeamSpeak | alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 3 Client" terminal=false')
+print(message.format(**mappings))
