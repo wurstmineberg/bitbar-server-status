@@ -41,18 +41,25 @@ def get_img_str(wmb_id):
 
 message = '''{num}|templateImage=iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=={numcolor}
 ---
-Version: {ver}|color=gray
-Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'
+{versioninfo}
 {playerlist}
 ---
 Start Minecraft | bash=/usr/bin/open param1=-a param2=Minecraft terminal=false
-Start TeamSpeak | alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 3 Client" terminal=false'''
+Start TeamSpeak | alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 3 Client" terminal=false
+{detailinfo}'''
+
+versioninfo = """Version: {ver}|color=gray
+Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'"""
+
+detailinfo = """Time: {ticks} ticks
+Weather: {weather}"""
 
 mappings = defaultdict(str)
 
 try:
     people = requests.get('https://api.wurstmineberg.de/v2/people.json').json()
     status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json').json()
+    level = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/level.json').json()
 except:  # for some reason not reachable
     mappings['num'] = '?'
     mappings['playerlist'] = 'No internet connection|color=gray'
@@ -61,6 +68,18 @@ except:  # for some reason not reachable
 
 
 mappings['num'] = len(status['list'])
+
+mappings['versioninfo'] = versioninfo.format(ver=status['version'])
+
+if level['Data']['thundering']:
+    weather = "Thunderstorm"
+else:
+    weather = "Rain" if level['Data']['raining'] else "Clear"
+
+mappings['detailinfo'] = detailinfo.format(
+        ticks=level['Data']['DayTime'] % 24000,
+        weather=weather,
+        )
 
 playerlist = ""
 for wmb_id in status['list']:
