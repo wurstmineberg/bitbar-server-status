@@ -75,10 +75,10 @@ if level['Data']['thundering']:
 else:
     weather = ":rain_cloud: Rain" if level['Data']['raining'] else ":sunny: Clear"
 
-ticks = level['Data']['DayTime'] % 24000
+ticks = level['Data']['DayTime'] % 24000 + 6000
 
 mappings['detailinfo'] = detailinfo.format(
-        time='{}:{}'.format(ticks//1000, int((ticks % 1000)/1000*60)),
+        time='{}:{:02d}'.format(ticks//1000, int((ticks % 1000)/1000*60)),
         weather=weather,
         )
 
