@@ -71,11 +71,11 @@ mappings['num'] = len(status['list'])
 mappings['versioninfo'] = versioninfo.format(ver=status['version'])
 
 if level['Data']['thundering']:
-    weather = ":thunder_cloud_and_rain: Thunderstorm"
+    weather = "⚡ Thunderstorm"
 else:
-    weather = ":rain_cloud: Rain" if level['Data']['raining'] else ":sunny: Clear"
+    weather = "🌧 Rain" if level['Data']['raining'] else "☀️ Clear"
 
-ticks = level['Data']['DayTime'] % 24000 + 6000
+ticks = (level['Data']['DayTime']+6000) % 24000
 
 mappings['detailinfo'] = detailinfo.format(
         time='{}:{:02d}'.format(ticks//1000, int((ticks % 1000)/1000*60)),
