@@ -37,7 +37,19 @@ def get_img_str(wmb_id):
             json.dump(cache, f)
         return ' image=' + cache[wmb_id]
     else:
-        return ''
+        skinsurl = 'http://skins.minecraft.net/MinecraftSkins/{}.png'
+        try:
+            r = requests.get(skinsurl.format(people['people'][wmb_id]['minecraft']['nicks'][-1]))
+        except:
+            return ''  # don't fail if we can't get an image
+        i = Image.open(BytesIO(r.content))
+        i = i.crop((8,8,16,16)).resize((16,16))
+        bfr = BytesIO()
+        i.save(bfr, format="PNG")
+        cache[wmb_id] = base64.b64encode(bfr.getvalue()).decode()
+        with open(wurstbit_dir + gravatar_file, 'w') as f:
+            json.dump(cache, f)
+        return ' image=' + cache[wmb_id]
 
 message = '''{num}|templateImage=iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=={numcolor}
 ---
@@ -71,9 +83,9 @@ mappings['num'] = len(status['list'])
 mappings['versioninfo'] = versioninfo.format(ver=status['version'])
 
 if level['Data']['thundering']:
-    weather = "⚡ Thunderstorm"
+    weather = ":zap: Thunderstorm"
 else:
-    weather = "🌧 Rain" if level['Data']['raining'] else "☀️ Clear"
+    weather = ":umbrella: Rain" if level['Data']['raining'] else ":sunny: Clear"
 
 ticks = (level['Data']['DayTime']+6000) % 24000
 
