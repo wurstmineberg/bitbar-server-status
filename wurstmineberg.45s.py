@@ -63,7 +63,7 @@ Start TeamSpeak | alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 
 versioninfo = """Version: {ver}
 Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'"""
 
-detailinfo = """{time}, {weather}"""
+detailinfo = """{time}\t{weather}"""
 
 mappings = defaultdict(str)
 
@@ -85,7 +85,7 @@ mappings['versioninfo'] = versioninfo.format(ver=status['version'])
 if level['Data']['thundering']:
     weather = ":zap: Thunderstorm"
 else:
-    weather = ":umbrella: Rain" if level['Data']['raining'] else ":sunny: Clear"
+    weather = ":umbrella: Rain" if level['Data']['raining'] else ":sun_with_face: Clear"
 
 ticks = (level['Data']['DayTime']+6000) % 24000
 hour, minutes = ticks//1000, int((ticks % 1000)/1000*60)
