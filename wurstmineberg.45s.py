@@ -88,9 +88,11 @@ else:
     weather = ":umbrella: Rain" if level['Data']['raining'] else ":sunny: Clear"
 
 ticks = (level['Data']['DayTime']+6000) % 24000
+hour, minutes = ticks//1000, int((ticks % 1000)/1000*60)
+clock = str(hour%12 if hour%12 else 12) + ("30" if minutes >= 30 else "")
 
 mappings['detailinfo'] = detailinfo.format(
-        time='{}:{:02d}'.format(ticks//1000, int((ticks % 1000)/1000*60)),
+        time=':clock{}: {}:{:02d}'.format(clock, hour, minutes),
         weather=weather,
         )
 
