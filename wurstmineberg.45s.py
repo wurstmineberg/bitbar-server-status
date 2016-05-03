@@ -12,15 +12,25 @@ from collections import defaultdict
 
 wurstbit_dir = os.path.expanduser('~') + '/.config/wmb-bitbar/'
 gravatar_file = 'gravatar_cache.json'
-if not os.path.isdir(wurstbit_dir):
-    os.makedirs(wurstbit_dir)
-if os.path.isfile(wurstbit_dir + gravatar_file):
-    with open(wurstbit_dir + gravatar_file) as f:
-        cache = json.load(f)
-else:
-    cache = {}
 
-def get_img_str(wmb_id):
+def read_cache():
+    try:
+        with open(wurstbit_dir + gravatar_file) as f:
+            cache = json.load(f)
+    except FileNotFoundError:
+        cache = {}
+    return cache
+
+def write_cache(cache):
+    try:
+        with open(wurstbit_dir + gravatar_file, 'w') as f:
+            json.dump(cache, f)
+    except FileNotFoundError:
+        os.makedirs(wurstbit_dir)
+        with open(wurstbit_dir + gravatar_file, 'w') as f:
+            json.dump(cache, f)
+
+def get_img_str(wmb_id, cache):
     if wmb_id in cache:
         return ' image=' + cache[wmb_id]
     elif 'gravatar' in people['people'].get(wmb_id, {}):
@@ -33,8 +43,7 @@ def get_img_str(wmb_id):
         bfr = BytesIO()
         i.save(bfr, format="PNG")
         cache[wmb_id] = base64.b64encode(bfr.getvalue()).decode()
-        with open(wurstbit_dir + gravatar_file, 'w') as f:
-            json.dump(cache, f)
+        write_cache(cache)
         return ' image=' + cache[wmb_id]
     else:
         skinsurl = 'http://skins.minecraft.net/MinecraftSkins/{}.png'
@@ -47,8 +56,7 @@ def get_img_str(wmb_id):
         bfr = BytesIO()
         i.save(bfr, format="PNG")
         cache[wmb_id] = base64.b64encode(bfr.getvalue()).decode()
-        with open(wurstbit_dir + gravatar_file, 'w') as f:
-            json.dump(cache, f)
+        write_cache(cache)
         return ' image=' + cache[wmb_id]
 
 message = '''{num}|templateImage=iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=={numcolor}
@@ -63,7 +71,7 @@ Start TeamSpeak | alternate=true bash=/usr/bin/open param1=-a param2="TeamSpeak 
 versioninfo = """Version: {ver}
 Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'"""
 
-detailinfo = """{time}\t{weather}"""
+detailinfo = """{time}\t\t{weather}"""
 
 mappings = defaultdict(str)
 
@@ -77,6 +85,7 @@ except:  # for some reason not reachable
     print(message.format(**mappings))
     sys.exit(0)
 
+cache = read_cache()
 
 mappings['num'] = len(status['list'])
 
@@ -98,7 +107,7 @@ mappings['detailinfo'] = detailinfo.format(
 
 playerlist = ""
 for wmb_id in status['list']:
-    img_str = get_img_str(wmb_id)
+    img_str = get_img_str(wmb_id, cache)
 
     display_name = people['people'].get(wmb_id, {}).get('name', wmb_id)
     if people['people'].get(wmb_id, False) and people['people'][wmb_id].get('slack', False):
