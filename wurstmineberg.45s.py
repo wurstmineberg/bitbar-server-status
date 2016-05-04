@@ -126,9 +126,15 @@ for wmb_id in status['list']:
             mappings['numcolor'] = color
     else:
         color = ''
+
     playerlist += '{}|href=https://wurstmineberg.de/people/{}{}{}\n'.format(display_name, wmb_id, color, img_str)
     if slack_url is not None:
         playerlist += '@{}|alternate=true href={} color=red {}\n'.format(slack_name, slack_url, img_str)
 mappings['playerlist'] = playerlist
+
+if mappings['num'] == 1:
+        mappings['num'] = display_name
+elif mappings['num'] == 0:
+        mappings['num'] = ''
 
 print(message.format(**mappings))
