@@ -20,7 +20,7 @@ def get_img_str(wmb_id):
     if wmb_id in CACHE:
         return ' image={}'.format(CACHE[wmb_id])
     else:
-        r = requests.get('https://api.wurstmineberg.de/v2/player/{player}/skin/render/head/16.png'.format(wmb_id))
+        r = requests.get('https://api.wurstmineberg.de/v2/player/{}/skin/render/head/16.png'.format(wmb_id))
         CACHE[wmb_id] = base64.b64encode(r.content).decode()
         return ' image={}'.format(CACHE[wmb_id])
 
