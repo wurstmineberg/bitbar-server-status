@@ -19,6 +19,14 @@ CACHE = basedir.data_dirs('bitbar/plugin-cache/wurstmineberg/gravatars.json').la
 def get_img_str(wmb_id):
     if wmb_id in CACHE:
         return ' image={}'.format(CACHE[wmb_id])
+    elif 'gravatar' in people['people'].get(wmb_id, {}):
+        r = requests.get(people['people'][wmb_id]['gravatar'])
+        i = Image.open(io.BytesIO(r.content))
+        i.thumbnail((16,16)) # resize with antialiasing
+        buf = io.BytesIO()
+        i.save(buf, format='PNG')
+        CACHE[wmb_id] = base64.b64encode(buf.getvalue()).decode()
+        return ' image={}'.format(CACHE[wmb_id])
     else:
         r = requests.get('https://api.wurstmineberg.de/v2/player/{}/skin/render/head/16.png'.format(wmb_id))
         CACHE[wmb_id] = base64.b64encode(r.content).decode()
