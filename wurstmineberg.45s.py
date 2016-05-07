@@ -13,7 +13,7 @@ import json
 import os.path
 import requests
 
-CONFIG = basedir.config_dirs('bitbar/plugins/wurstmineberg.json').json()
+CONFIG = basedir.config_dirs('bitbar/plugins/wurstmineberg.json').json() or {}
 CACHE = basedir.data_dirs('bitbar/plugin-cache/wurstmineberg/gravatars.json').lazy_json(existing_only=True, default={})
 
 def get_img_str(wmb_id):
