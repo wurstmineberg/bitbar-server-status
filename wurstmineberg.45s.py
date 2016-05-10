@@ -122,6 +122,8 @@ for wmb_id in status['list']:
                 people['people'][wmb_id]['favColor']['green'],
                 people['people'][wmb_id]['favColor']['blue'],
                 )
+        if color == ' color=#000000': # unreadable
+            color = ''
         if mappings['num'] == 1:
             mappings['numcolor'] = color
     else:
