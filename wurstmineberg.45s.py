@@ -46,7 +46,7 @@ except Exception as e:
 
 if len(status['list']) == 0:
     print('|templateImage={}'.format(len(status['list']), wurstpick))
-elif CONFIG.get('singleColor', True) and len(status['list']) == 1:
+elif CONFIG.get('singleColor', True) and len(status['list']) == 1 and 'favColor' in people['people'][status['list'][0]]:
     print('1|templateImage={} color=#{red:02x}{green:02x}{blue:02x}'.format(wurstpick, **people['people'][status['list'][0]]['favColor']))
 else:
     print('{}|templateImage={}'.format(len(status['list']), wurstpick))
