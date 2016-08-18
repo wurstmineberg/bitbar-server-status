@@ -44,9 +44,14 @@ except Exception as e:
     print('{}: {}'.format(e.__class__.__name__, e))
     sys.exit()
 
-if len(status['list']) == 0:
+if not status['running']:
+    if CONFIG.get('showIfOffline', False):
+        print('!|templateImage={}'.format(wurstpick))
+    else:
+        print('')
+elif len(status['list']) == 0:
     if CONFIG.get('showIfEmpty', False):
-        print('|templateImage={}'.format(len(status['list']), wurstpick))
+        print('|templateImage={}'.format(wurstpick))
     else:
         print('')
 elif CONFIG.get('singleColor', True) and len(status['list']) == 1 and 'favColor' in people['people'][status['list'][0]]:
@@ -61,6 +66,8 @@ elif CONFIG.get('versionLink', True) == 'alt':
     print('Version: {ver}|alternate=true href=http://minecraft.gamepedia.com/{ver}'.format(ver=status['version']))
 else:
     print('Version: {ver}'.format(ver=status['version']))
+if not status['running']:
+    print('Server offline')
 for wmb_id in status['list']:
     img_str = get_img_str(wmb_id)
 
