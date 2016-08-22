@@ -16,20 +16,23 @@ import requests
 CONFIG = basedir.config_dirs('bitbar/plugins/wurstmineberg.json').json() or {}
 CACHE = basedir.data_dirs('bitbar/plugin-cache/wurstmineberg/gravatars.json').lazy_json(existing_only=True, default={})
 
-def get_img_str(wmb_id):
+def get_img_str(wmb_id, zoom=1):
     if wmb_id in CACHE:
         return ' image={}'.format(CACHE[wmb_id])
     elif 'gravatar' in people['people'].get(wmb_id, {}):
         r = requests.get(people['people'][wmb_id]['gravatar'])
         i = Image.open(io.BytesIO(r.content))
-        i.thumbnail((16,16)) # resize with antialiasing
+        i.thumbnail((16 * zoom, 16 * zoom)) # resize with antialiasing
         buf = io.BytesIO()
-        i.save(buf, format='PNG')
+        i.save(buf, format='PNG', dpi=(72 * zoom, 72 * zoom))
         CACHE[wmb_id] = base64.b64encode(buf.getvalue()).decode()
         return ' image={}'.format(CACHE[wmb_id])
     else:
-        r = requests.get('https://api.wurstmineberg.de/v2/player/{}/skin/render/head/16.png'.format(wmb_id))
-        CACHE[wmb_id] = base64.b64encode(r.content).decode()
+        r = requests.get('https://api.wurstmineberg.de/v2/player/{}/skin/render/head/{}.png'.format(wmb_id, 16 * zoom))
+        i = Image.open(io.BytesIO(r.content))
+        buf = io.BytesIO()
+        i.save(buf, format='PNG', dpi=(72 * zoom, 72 * zoom))
+        CACHE[wmb_id] = base64.b64encode(buf.getvalue()).decode()
         return ' image={}'.format(CACHE[wmb_id])
 
 wurstpick = """iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=="""
@@ -69,7 +72,7 @@ else:
 if not status['running']:
     print('Server offline')
 for wmb_id in status['list']:
-    img_str = get_img_str(wmb_id)
+    img_str = get_img_str(wmb_id, zoom=CONFIG.get('zoom', 1))
 
     display_name = people['people'].get(wmb_id, {}).get('name', wmb_id)
     if people['people'].get(wmb_id, False) and people['people'][wmb_id].get('slack', False):
