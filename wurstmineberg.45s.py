@@ -45,6 +45,10 @@ except Exception as e:
     print('?|templateImage={}'.format(wurstpick))
     print('---')
     print('{}: {}'.format(e.__class__.__name__, e))
+    exc_io = io.StringIO()
+    traceback.print_exc(file=exc_io)
+    for line in exc_io.getvalue().split('\n'):
+        print('--{}'.format(line))
     sys.exit()
 
 if not status['running']:
