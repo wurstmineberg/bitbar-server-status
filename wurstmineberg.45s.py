@@ -81,7 +81,10 @@ try:
     level = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/level.json').json()
 except:  # for some reason not reachable
     mappings['num'] = '?'
+    mappings['versioninfo'] = ''
+    mappings['detailinfo'] = ''
     mappings['playerlist'] = 'No internet connection|color=gray'
+    mappings['numcolor'] = ''
     print(message.format(**mappings))
     sys.exit(0)
 
@@ -105,7 +108,9 @@ mappings['detailinfo'] = detailinfo.format(
         weather=weather,
         )
 
-playerlist = ""
+playerlist = ''
+mappings['numcolor'] = ''
+
 for wmb_id in status['list']:
     img_str = get_img_str(wmb_id, cache)
 
