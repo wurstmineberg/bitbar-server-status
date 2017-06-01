@@ -22,6 +22,7 @@ def get_img_str(wmb_id, zoom=1):
         return ' image={}'.format(CACHE[wmb_id])
     elif 'gravatar' in people['people'].get(wmb_id, {}):
         r = requests.get(people['people'][wmb_id]['gravatar'])
+        r.raise_for_status()
         i = Image.open(io.BytesIO(r.content))
         i.thumbnail((16 * zoom, 16 * zoom)) # resize with antialiasing
         buf = io.BytesIO()
@@ -30,6 +31,7 @@ def get_img_str(wmb_id, zoom=1):
         return ' image={}'.format(CACHE[wmb_id])
     else:
         r = requests.get('https://api.wurstmineberg.de/v2/player/{}/skin/render/head/{}.png'.format(wmb_id, 16 * zoom))
+        r.raise_for_status()
         i = Image.open(io.BytesIO(r.content))
         buf = io.BytesIO()
         i.save(buf, format='PNG', dpi=(72 * zoom, 72 * zoom))
@@ -39,9 +41,15 @@ def get_img_str(wmb_id, zoom=1):
 wurstpick = """iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeyFOlAAAAOXRSTlMABAUHCAkLDBAWFxobHyAhOElUY29yeHl8fX5/iIuNkJelp7a4v8DCxMXHzM7P1+Dh5e3x8vT5/f5sM6tQAAAAiElEQVQY013LxXICAQAE0cYJLtkkENxZluDS//9jOWyhfZtXNUCpUPpdnPZdMgDQuF5UdVePYaTqYTMPkzGE6vEjDdl4f6qem9ybav9Pgzus3FNWWzdYu4OOOnxc6hCokxgCrQFtdQxANRrmAXrqDCABKQC+1GWOp37UTfFZumrEm2xfgO9B5R8QKhPy1xZyawAAAABJRU5ErkJggg=="""
 
 try:
-    people = requests.get('https://api.wurstmineberg.de/v2/people.json').json()
-    status = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json').json()
-    level = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/level.json').json()
+    people_response = requests.get('https://api.wurstmineberg.de/v2/people.json')
+    people_response.raise_for_status()
+    people = response.json()
+    status_response = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json')
+    status_response.raise_for_status()
+    status = status_response.json()
+    level_response = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/level.json')
+    level_response.raise_for_status()
+    level = level_response.json()
 except Exception as e:
     print('?|templateImage={}'.format(wurstpick))
     print('---')
