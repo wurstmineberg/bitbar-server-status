@@ -43,7 +43,7 @@ wurstpick = """iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEUAAAAAAAAAA
 try:
     people_response = requests.get('https://api.wurstmineberg.de/v2/people.json')
     people_response.raise_for_status()
-    people = response.json()
+    people = people_response.json()
     status_response = requests.get('https://api.wurstmineberg.de/v2/world/wurstmineberg/status.json')
     status_response.raise_for_status()
     status = status_response.json()
