@@ -79,7 +79,7 @@ for uid in status.get('list', []):
 
     display_name = people['people'].get(str(uid), {}).get('name', str(uid))
     if 'discord' in people['people'].get(str(uid), {}):
-        discord_name = people['people'][str(uid)]['discord']['displayName']
+        discord_name = people['people'][str(uid)]['discord']['nick'] or people['people'][str(uid)]['discord']['username']
         discord_url = 'https://discordapp.com/users/{}/'.format(people['people'][str(uid)]['discord']['snowflake'])
     else:
         discord_url = None
