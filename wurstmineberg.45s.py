@@ -18,9 +18,10 @@ def get_img_str(uid, zoom=1):
     if str(uid) in CACHE:
         return ' image={}'.format(CACHE[str(uid)])
     else:
-        response = requests.get(get_json('https://wurstmineberg.de/api/v3/person/{}/avatar.json'.format(uid))['url'])
+        avatar_info = get_json('https://wurstmineberg.de/api/v3/person/{}/avatar.json'.format(uid))
+        response = requests.get(avatar_info['url'])
         response.raise_for_status()
-        image = PIL.Image.open(io.BytesIO(response.content))
+        image = PIL.Image.open(io.BytesIO(response.content)).resize((16 * zoom, 16 * zoom), resample=PIL.Image.NEAREST if avatar_info['pixelate'] else PIL.Image.BICUBIC)
         buf = io.BytesIO()
         image.save(buf, format='PNG', dpi=(72 * zoom, 72 * zoom))
         CACHE[str(uid)] = base64.b64encode(buf.getvalue()).decode()
