@@ -12,19 +12,19 @@ import requests
 import traceback
 
 CONFIG = basedir.config_dirs('bitbar/plugins/wurstmineberg.json').json() or {}
-CACHE = basedir.data_dirs('bitbar/plugin-cache/wurstmineberg/gravatars.json').lazy_json(existing_only=True, default={})
+CACHE = basedir.data_dirs('bitbar/plugin-cache/wurstmineberg/avatars.json').lazy_json(existing_only=True, default={})
 
 def get_img_str(uid, zoom=1):
-    if uid in CACHE:
-        return ' image={}'.format(CACHE[uid])
+    if str(uid) in CACHE:
+        return ' image={}'.format(CACHE[str(uid)])
     else:
         response = requests.get(get_json('https://wurstmineberg.de/api/v3/person/{}/avatar.json'.format(uid))['url'])
         response.raise_for_status()
         image = PIL.Image.open(io.BytesIO(response.content))
         buf = io.BytesIO()
         image.save(buf, format='PNG', dpi=(72 * zoom, 72 * zoom))
-        CACHE[uid] = base64.b64encode(buf.getvalue()).decode()
-        return ' image={}'.format(CACHE[uid])
+        CACHE[str(uid)] = base64.b64encode(buf.getvalue()).decode()
+        return ' image={}'.format(CACHE[str(uid)])
 
 def get_json(url):
     response = requests.get(url)
@@ -76,18 +76,18 @@ if not status['running']:
 for uid in status.get('list', []):
     img_str = get_img_str(uid, zoom=CONFIG.get('zoom', 1))
 
-    display_name = people['people'].get(uid, {}).get('name', uid)
-    if people['people'].get(uid, False) and people['people'][uid].get('discord', False):
-        discord_name = people['people'][wmb_id]['discord']['displayName']
-        discord_url = 'https://discordapp.com/users/{}/'.format(people['people'][wmb_id]['discord']['snowflake'])
+    display_name = people['people'].get(str(uid), {}).get('name', str(uid))
+    if 'discord' in people['people'].get(str(uid), {}):
+        discord_name = people['people'][str(uid)]['discord']['displayName']
+        discord_url = 'https://discordapp.com/users/{}/'.format(people['people'][str(uid)]['discord']['snowflake'])
     else:
         discord_url = None
 
-    if 'favColor' in people['people'].get(wmb_id, {}):
-        color = ' color=#{red:02x}{green:02x}{blue:02x}'.format(**people['people'][wmb_id]['favColor'])
+    if 'favColor' in people['people'].get(str(uid), {}):
+        color = ' color=#{red:02x}{green:02x}{blue:02x}'.format(**people['people'][str(uid)]['favColor'])
     else:
         color = ''
-    print('{}|href=https://wurstmineberg.de/people/{}{}{}'.format(display_name, wmb_id, color, img_str))
+    print('{}|href=https://wurstmineberg.de/people/{}{}{}'.format(display_name, uid, color, img_str))
     if discord_url is not None:
         print('@{}|alternate=true href={} color=blue{}'.format(discord_name, discord_url, img_str))
 
