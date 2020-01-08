@@ -267,7 +267,12 @@ fn bitbar() -> Result<Menu, Error> {
                 item = item.color(fav_color)?;
             }
             if let Some(discord) = person.discord {
-                item = item.alt(ContentItem::new(format!("@{}", discord.name())).color("blue")?.href(discord.url())?);
+                item = item.alt(
+                    ContentItem::new(format!("@{}", discord.name()))
+                        .color("blue")?
+                        .href(discord.url())?
+                        .image(cache.get_img(uid.clone(), config.zoom)?)?
+                );
             }
             Ok(item.into())
         }).collect::<Result<Vec<MenuItem>, Error>>()?)
