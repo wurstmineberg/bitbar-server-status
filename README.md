@@ -8,5 +8,5 @@ This is a simple [BitBar](https://getbitbar.com/) plugin that uses [our API](htt
     ```sh
     cargo install --git=https://github.com/wurstmineberg/bitbar-wurstmineberg-status
     ```
-4. Create a symlink to `~/.cargo/bin/bitbar-wurstmineberg-status` in your BitBar plugin folder. Name it something like `wurstmineberg.45s.o`.
+4. Create a symlink to `~/.cargo/bin/bitbar-server-status` in your BitBar plugin folder. Name it something like `wurstmineberg.45s.o`.
 5. Refresh BitBar by opening a menu and pressing <key>⌘</key><key>R</key>.
