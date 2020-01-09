@@ -4,16 +4,20 @@ use {
     std::{
         collections::HashMap,
         convert::Infallible,
+        env,
         fmt,
         fs::File,
-        io
+        io,
+        iter
     },
     bitbar::{
+        Command,
         ContentItem,
         Image,
         Menu,
         MenuItem
     },
+    chrono::prelude::*,
     css_color_parser::ColorParseError,
     derive_more::From,
     image::{
@@ -22,6 +26,7 @@ use {
         ImageFormat
     },
     mime::Mime,
+    notify_rust::Notification,
     num_traits::One,
     serde::{
         Deserialize,
@@ -46,13 +51,18 @@ mod util;
 #[derive(Debug, From)]
 enum Error {
     ColorParse(ColorParseError),
+    #[from(ignore)]
+    CommandLength(usize),
+    EmptyTimespec,
     Header(reqwest::header::ToStrError),
     InvalidMime(Mime),
     Image(ImageError),
     Io(io::Error),
     Json(serde_json::Error),
     MimeFromStr(mime::FromStrError),
+    MissingCliArg,
     Reqwest(reqwest::Error),
+    Timespec(timespec::Error),
     Url(url::ParseError),
     Xdg(xdg_basedir::Error)
 }
@@ -124,13 +134,8 @@ struct Config {
 impl Config {
     fn load() -> Result<Config, Error> {
         let dirs = xdg_basedir::get_config_home().into_iter().chain(xdg_basedir::get_config_dirs());
-        for cfg_dir in dirs {
-            let path = cfg_dir.join("bitbar/plugins/wurstmineberg.json");
-            if path.exists() {
-                return Ok(serde_json::from_reader(File::open(path)?)?);
-            }
-        }
-        Ok(Config::default())
+        Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugins/wurstmineberg.json")).ok())
+            .next().map_or(Ok(Config::default()), serde_json::from_reader)?)
     }
 }
 
@@ -144,6 +149,40 @@ impl Default for Config {
             version_link: VersionLink::Enabled,
             zoom: 1
         }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", default)]
+pub(crate) struct Data {
+    #[serde(default)]
+    pub(crate) defer_deltas: Vec<Vec<String>>,
+    pub(crate) deferred: Option<DateTime<Utc>>
+}
+
+impl Data {
+    fn load() -> Result<Data, Error> {
+        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
+        Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugin-cache/wurstmineberg.json")).ok())
+            .next().map_or(Ok(Data::default()), serde_json::from_reader)?)
+    }
+
+    fn save(&mut self) -> Result<(), Error> {
+        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
+        for data_dir in dirs {
+            let data_path = data_dir.join("bitbar/plugin-cache/wurstmineberg.json");
+            if data_path.exists() {
+                if let Some(()) = File::create(data_path).ok()
+                    .and_then(|data_file| serde_json::to_writer_pretty(data_file, &self).ok())
+                {
+                    return Ok(());
+                }
+            }
+        }
+        let data_path = xdg_basedir::get_data_home()?.join("bitbar/plugin-cache/wurstmineberg.json");
+        let data_file = File::create(data_path)?;
+        serde_json::to_writer_pretty(data_file, &self)?;
+        Ok(())
     }
 }
 
@@ -227,6 +266,11 @@ struct AvatarInfo {
 }
 
 fn bitbar() -> Result<Menu, Error> {
+    let current_exe = env::current_exe()?;
+    let data = Data::load()?;
+    if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
+        return Ok(Menu::default());
+    }
     let config = Config::load()?;
     let status = Status::load()?;
     if !config.show_if_offline && !status.running { return Ok(Menu::default()); }
@@ -283,6 +327,26 @@ fn bitbar() -> Result<Menu, Error> {
                 .alt(ContentItem::new("Open in Discord").color("blue")?.href("https://discordapp.com/channels/88318761228054528/388412978677940226")?)
                 .into()
         ])
+        .chain(if data.defer_deltas.is_empty() {
+            Vec::default()
+        } else {
+            iter::once(Ok(MenuItem::Sep)).chain(
+                data.defer_deltas.iter().map(|delta| Ok(
+                    ContentItem::new(format!("Defer Until {}", delta.join(" ")))
+                        .command(
+                            Command::try_from(
+                                vec![&format!("{}", current_exe.display()), &format!("defer")]
+                                    .into_iter()
+                                    .chain(delta)
+                                    .collect::<Vec<_>>()
+                            ).map_err(|v| Error::CommandLength(v.len()))?
+                        )
+                        .refresh()
+                        .into()
+                ))
+            )
+            .collect::<Result<_, Error>>()?
+        })
         //TODO “Defer” submenu if configured
         .collect();
     cache.save()?;
@@ -299,16 +363,70 @@ fn wurstpick(zoom: u8) -> Image {
     }
 }
 
+fn notify(summary: impl fmt::Display, body: impl fmt::Display) {
+    //let _ = notify_rust::set_application(&notify_rust::get_bundle_identifier_or_default("BitBar")); //TODO uncomment when https://github.com/h4llow3En/mac-notification-sys/issues/8 is fixed
+    let _ = Notification::default()
+        .summary(&summary.to_string())
+        .sound_name("Funk")
+        .body(&body.to_string())
+        .show();
+}
+
+trait ResultExt {
+    type Ok;
+
+    fn notify(self, summary: impl fmt::Display) -> Self::Ok;
+}
+
+impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
+    type Ok = T;
+
+    fn notify(self, summary: impl fmt::Display) -> T {
+        match self {
+            Ok(t) => t,
+            Err(e) => {
+                notify(&summary, format!("{:?}", e));
+                panic!("{}: {:?}", summary, e);
+            }
+        }
+    }
+}
+
+// subcommands
+
+fn defer(args: impl Iterator<Item = String>) -> Result<(), Error> {
+    let mut args = args.peekable();
+    let mut data = Data::load()?;
+    data.deferred = Some(if args.peek().is_some() {
+        timespec::next(args)?.ok_or(Error::EmptyTimespec)?
+    } else {
+        return Err(Error::MissingCliArg);
+    });
+    data.save()?;
+    Ok(())
+}
+
 fn main() {
-    match bitbar() {
-        Ok(menu) => { print!("{}", menu); }
-        Err(e) => {
-            let zoom = Config::load().map(|config| config.zoom).unwrap_or(1);
-            print!("{}", Menu(vec![
-                ContentItem::new("?").template_image(wurstpick(zoom)).never_unwrap().into(),
-                MenuItem::Sep,
-                MenuItem::new(format!("{:?}", e))
-            ]));
+    let mut args = env::args().skip(1);
+    if let Some(arg) = args.next() {
+        match &arg[..] {
+            "defer" => defer(args).notify("error in defer cmd"),
+            _ => {
+                notify("error in bitbar-wurstmineberg", format!("unknown subcommand: {}", arg));
+                panic!("unknown subcommand: {}", arg);
+            }
+        }
+    } else {
+        match bitbar() {
+            Ok(menu) => { print!("{}", menu); }
+            Err(e) => {
+                let zoom = Config::load().map(|config| config.zoom).unwrap_or(1);
+                print!("{}", Menu(vec![
+                    ContentItem::new("?").template_image(wurstpick(zoom)).never_unwrap().into(),
+                    MenuItem::Sep,
+                    MenuItem::new(format!("{:?}", e))
+                ]));
+            }
         }
     }
 }

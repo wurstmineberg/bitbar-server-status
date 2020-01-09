@@ -6,10 +6,12 @@ edition = "2018"
 
 [dependencies]
 base64 = "0.11"
+chrono = "0.4"
 css-color-parser = "0.1.2"
 derive_more = "0.99"
 image = "0.22.2"
 mime = "*"
+notify-rust = "3"
 num-traits = "*"
 serde_json = "1"
 serenity = "0.7"
@@ -26,6 +28,9 @@ features = ["blocking", "json"]
 [dependencies.serde]
 version = "1"
 features = ["derive"]
+
+[dependencies.timespec]
+git = "https://github.com/fenhl/rust-timespec"
 
 [dependencies.url]
 version = "2"
