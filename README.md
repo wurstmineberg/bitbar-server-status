@@ -6,7 +6,7 @@ This is a simple [BitBar](https://getbitbar.com/) plugin that uses [our API](htt
 2. [Install Rust](https://www.rust-lang.org/tools/install).
 3. Install the plugin:
     ```sh
-    cargo install --git=https://github.com/wurstmineberg/bitbar-wurstmineberg-status
+    cargo install --git=https://github.com/wurstmineberg/bitbar-server-status
     ```
-4. Create a symlink to `~/.cargo/bin/bitbar-server-status` in your BitBar plugin folder. Name it something like `wurstmineberg.45s.o`.
+4. Create a symlink to `~/.cargo/bin/bitbar-wurstmineberg-status` in your BitBar plugin folder. Name it something like `wurstmineberg.45s.o`.
 5. Refresh BitBar by opening a menu and pressing <key>⌘</key><key>R</key>.
