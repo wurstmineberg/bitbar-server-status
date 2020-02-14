@@ -83,7 +83,7 @@ dependencies = [
 
 [[package]]
 name = "bitbar-wurstmineberg-status"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitbar 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
