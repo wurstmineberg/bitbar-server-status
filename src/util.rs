@@ -45,11 +45,11 @@ impl ResponseExt for reqwest::blocking::Response {
             Some(content_type) => {
                 let mime_type = content_type.to_str()?.parse::<Mime>()?;
                 let format = match (mime_type.type_(), mime_type.subtype()) {
-                    (mime::IMAGE, mime::BMP) => ImageFormat::BMP,
-                    (mime::IMAGE, mime::GIF) => ImageFormat::GIF,
-                    (mime::IMAGE, mime::JPEG) => ImageFormat::JPEG,
-                    (mime::IMAGE, mime::PNG) => ImageFormat::PNG,
-                    (mime::IMAGE, subtype) if subtype.as_ref() == "webp" => ImageFormat::WEBP,
+                    (mime::IMAGE, mime::BMP) => ImageFormat::Bmp,
+                    (mime::IMAGE, mime::GIF) => ImageFormat::Gif,
+                    (mime::IMAGE, mime::JPEG) => ImageFormat::Jpeg,
+                    (mime::IMAGE, mime::PNG) => ImageFormat::Png,
+                    (mime::IMAGE, subtype) if subtype.as_ref() == "webp" => ImageFormat::WebP,
                     _ => { return Err(Error::InvalidMime(mime_type)); }
                 };
                 let mut buf = Vec::default();

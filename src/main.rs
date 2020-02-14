@@ -21,9 +21,9 @@ use {
     css_color_parser::ColorParseError,
     derive_more::From,
     image::{
-        FilterType,
         ImageError,
-        ImageFormat
+        ImageFormat,
+        imageops::FilterType
     },
     mime::Mime,
     notify_rust::Notification,
@@ -70,6 +70,31 @@ enum Error {
 impl From<Infallible> for Error {
     fn from(never: Infallible) -> Error {
         match never {}
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::ColorParse(e) => e.fmt(f),
+            Error::CommandLength(num_params) => write!(f, "BitBar command should have 1–6 parameters including the command name, but this one has {}", num_params),
+            Error::EmptyTimespec => write!(f, "given timespec matches no dates"),
+            Error::Header(e) => e.fmt(f),
+            Error::InvalidMime(mime) => write!(f, "{} is not a known image MIME type", mime),
+            Error::Image(e) => e.fmt(f),
+            Error::Io(e) => e.fmt(f),
+            Error::Json(e) => e.fmt(f),
+            Error::MimeFromStr(e) => e.fmt(f),
+            Error::MissingCliArg => write!(f, "missing command-line argument(s)"),
+            Error::Reqwest(e) => if let Some(url) = e.url() {
+                write!(f, "reqwest error at {}: {}", url, e)
+            } else {
+                write!(f, "reqwest error: {}", e)
+            },
+            Error::Timespec(e) => write!(f, "timespec error: {:?}", e), //TODO implement Display fir timespec::Error and use here
+            Error::Url(e) => e.fmt(f),
+            Error::Xdg(e) => e.fmt(f)
+        }
     }
 }
 
@@ -216,7 +241,7 @@ impl Cache {
                     .image()?;
                 //TODO resize to 16 * zoom and write with DPI 72 * zoom, see https://github.com/image-rs/image/issues/911
                 let mut buf = Vec::default();
-                image.resize_exact(16, 16, FilterType::Nearest).write_to(&mut buf, ImageFormat::PNG)?;
+                image.resize_exact(16, 16, FilterType::Nearest).write_to(&mut buf, ImageFormat::Png)?;
                 Ok(buf)
             })
             .map(|buf| (&buf).into())
@@ -421,11 +446,26 @@ fn main() {
             Ok(menu) => { print!("{}", menu); }
             Err(e) => {
                 let zoom = Config::load().map(|config| config.zoom).unwrap_or(1);
-                print!("{}", Menu(vec![
+                let mut error_menu = vec![
                     ContentItem::new("?").template_image(wurstpick(zoom)).never_unwrap().into(),
-                    MenuItem::Sep,
-                    MenuItem::new(format!("{:?}", e))
-                ]));
+                    MenuItem::Sep
+                ];
+                match e {
+                    Error::Reqwest(e) => {
+                        error_menu.push(MenuItem::new(format!("reqwest error: {}", e)));
+                        if let Some(url) = e.url() {
+                            error_menu.push(ContentItem::new(format!("URL: {}", url))
+                                .href(url.clone()).expect("failed to add link to error menu")
+                                .color("blue").expect("failed to parse the color blue")
+                                .into());
+                        }
+                    }
+                    e => {
+                        error_menu.push(MenuItem::new(&e));
+                        error_menu.push(MenuItem::new(format!("{:?}", e)));
+                    }
+                }
+                print!("{}", Menu(error_menu));
             }
         }
     }
