@@ -465,6 +465,10 @@ fn main() {
                         error_menu.push(MenuItem::new(format!("{:?}", e)));
                     }
                 }
+                error_menu.push(ContentItem::new("Report a Bug")
+                    .href("https://github.com/wurstmineberg/bitbar-server-status/issues/new").expect("failed to add link to error menu")
+                    .color("blue").expect("failed to parse the color blue")
+                    .into());
                 print!("{}", Menu(error_menu));
             }
         }
