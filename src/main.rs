@@ -81,7 +81,7 @@ impl fmt::Display for Error {
             Error::EmptyTimespec => write!(f, "given timespec matches no dates"),
             Error::Header(e) => e.fmt(f),
             Error::InvalidMime(mime) => write!(f, "{} is not a known image MIME type", mime),
-            Error::Image(e) => e.fmt(f),
+            Error::Image(e) => write!(f, "image error: {}", e),
             Error::Io(e) => e.fmt(f),
             Error::Json(e) => e.fmt(f),
             Error::MimeFromStr(e) => e.fmt(f),
@@ -233,12 +233,22 @@ impl Cache {
     fn get_img(&mut self, uid: Uid, _ /*zoom*/: u8) -> Result<Image, Error> {
         self.0.entry(uid.clone())
             .or_try_insert_with(|| {
-                let avatar_info = reqwest::blocking::get(&format!("https://wurstmineberg.de/api/v3/person/{}/avatar.json", uid))?
+                let AvatarInfo { url, fallbacks } = reqwest::blocking::get(&format!("https://wurstmineberg.de/api/v3/person/{}/avatar.json", uid))?
                     .error_for_status()?
-                    .json::<AvatarInfo>()?;
-                let image = reqwest::blocking::get(avatar_info.url)?
-                    .error_for_status()?
-                    .image()?;
+                    .json()?;
+                let image = reqwest::blocking::get(url)
+                    .map_err(Error::from)
+                    .and_then(|response| Ok(response.error_for_status()?))
+                    .and_then(|mut response| response.image())
+                    .or_else(|e| fallbacks
+                        .into_iter()
+                        .filter_map(|avatar_info| reqwest::blocking::get(avatar_info.url).ok()
+                            .and_then(|response| response.error_for_status().ok())
+                            .and_then(|mut response| response.image().ok())
+                        )
+                        .next()
+                        .ok_or(e)
+                    )?;
                 //TODO resize to 16 * zoom and write with DPI 72 * zoom, see https://github.com/image-rs/image/issues/911
                 let mut buf = Vec::default();
                 image.resize_exact(16, 16, FilterType::Nearest).write_to(&mut buf, ImageFormat::Png)?;
@@ -287,7 +297,9 @@ impl People {
 
 #[derive(Debug, Deserialize)]
 struct AvatarInfo {
-    url: Url
+    url: Url,
+    #[serde(default)]
+    fallbacks: Vec<AvatarInfo>
 }
 
 fn bitbar() -> Result<Menu, Error> {
