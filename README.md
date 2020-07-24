@@ -1,4 +1,6 @@
-This is a simple [BitBar](https://getbitbar.com/) plugin that uses [our API](https://wurstmineberg.de/api/v3) to show who is currently online on the main world.
+This is a [BitBar](https://getbitbar.com/) plugin that shows who is currently online on [Wurstmineberg](https://wurstmineberg.de/).
+
+For an equivalent Windows app, see [wurstmineberg/systray](https://github.com/wurstmineberg/systray).
 
 # Installation
 
