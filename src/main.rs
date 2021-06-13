@@ -5,17 +5,18 @@ use {
         collections::HashMap,
         convert::Infallible,
         env,
+        ffi::OsString,
         fmt,
         fs::File,
         io,
-        iter
+        iter,
     },
     bitbar::{
         Command,
         ContentItem,
         Image,
         Menu,
-        MenuItem
+        MenuItem,
     },
     chrono::prelude::*,
     css_color_parser::ColorParseError,
@@ -23,7 +24,7 @@ use {
     image::{
         ImageError,
         ImageFormat,
-        imageops::FilterType
+        imageops::FilterType,
     },
     mime::Mime,
     notify_rust::Notification,
@@ -32,7 +33,7 @@ use {
         Deserialize,
         Deserializer,
         Serialize,
-        de::Visitor
+        de::Visitor,
     },
     url::Url,
     crate::{
@@ -40,9 +41,9 @@ use {
         util::{
             EntryExt as _,
             ResponseExt as _,
-            ResultNeverExt as _
-        }
-    }
+            ResultNeverExt as _,
+        },
+    },
 };
 
 mod model;
@@ -61,10 +62,11 @@ enum Error {
     Json(serde_json::Error),
     MimeFromStr(mime::FromStrError),
     MissingCliArg,
+    OsString(OsString),
     Reqwest(reqwest::Error),
     Timespec(timespec::Error),
     Url(url::ParseError),
-    Xdg(xdg_basedir::Error)
+    Xdg(xdg_basedir::Error),
 }
 
 impl From<Infallible> for Error {
@@ -86,6 +88,7 @@ impl fmt::Display for Error {
             Error::Json(e) => e.fmt(f),
             Error::MimeFromStr(e) => e.fmt(f),
             Error::MissingCliArg => write!(f, "missing command-line argument(s)"),
+            Error::OsString(_) => write!(f, "command argument was not valid UTF-8"),
             Error::Reqwest(e) => if let Some(url) = e.url() {
                 write!(f, "reqwest error at {}: {}", url, e)
             } else {
@@ -93,8 +96,38 @@ impl fmt::Display for Error {
             },
             Error::Timespec(e) => write!(f, "timespec error: {:?}", e), //TODO implement Display fir timespec::Error and use here
             Error::Url(e) => e.fmt(f),
-            Error::Xdg(e) => e.fmt(f)
+            Error::Xdg(e) => e.fmt(f),
         }
+    }
+}
+
+impl From<Error> for Menu {
+    fn from(e: Error) -> Menu {
+        let zoom = Config::load().map(|config| config.zoom).unwrap_or(1);
+        let mut error_menu = vec![
+            ContentItem::new("?").template_image(wurstpick(zoom)).never_unwrap().into(),
+            MenuItem::Sep
+        ];
+        match e {
+            Error::Reqwest(e) => {
+                error_menu.push(MenuItem::new(format!("reqwest error: {}", e)));
+                if let Some(url) = e.url() {
+                    error_menu.push(ContentItem::new(format!("URL: {}", url))
+                        .href(url.clone()).expect("failed to add link to error menu")
+                        .color("blue").expect("failed to parse the color blue")
+                        .into());
+                }
+            }
+            e => {
+                error_menu.push(MenuItem::new(&e));
+                error_menu.push(MenuItem::new(format!("{:?}", e)));
+            }
+        }
+        error_menu.push(ContentItem::new("Report a Bug")
+            .href("https://github.com/wurstmineberg/bitbar-server-status/issues/new").expect("failed to add link to error menu")
+            .color("blue").expect("failed to parse the color blue")
+            .into());
+        Menu(error_menu)
     }
 }
 
@@ -102,7 +135,7 @@ impl fmt::Display for Error {
 enum VersionLink {
     Enabled,
     Alternate,
-    Disabled
+    Disabled,
 }
 
 impl Default for VersionLink {
@@ -153,7 +186,7 @@ struct Config {
     #[serde(default)]
     version_link: VersionLink,
     #[serde(default = "One::one")]
-    zoom: u8
+    zoom: u8,
 }
 
 impl Config {
@@ -172,7 +205,7 @@ impl Default for Config {
             show_if_offline: false,
             single_color: true,
             version_link: VersionLink::Enabled,
-            zoom: 1
+            zoom: 1,
         }
     }
 }
@@ -182,7 +215,7 @@ impl Default for Config {
 pub(crate) struct Data {
     #[serde(default)]
     pub(crate) defer_deltas: Vec<Vec<String>>,
-    pub(crate) deferred: Option<DateTime<Utc>>
+    pub(crate) deferred: Option<DateTime<Utc>>,
 }
 
 impl Data {
@@ -200,7 +233,7 @@ impl Data {
                 if let Some(()) = File::create(data_path).ok()
                     .and_then(|data_file| serde_json::to_writer_pretty(data_file, &self).ok())
                 {
-                    return Ok(());
+                    return Ok(())
                 }
             }
         }
@@ -218,11 +251,11 @@ struct Cache(HashMap<Uid, Vec<u8>>);
 impl Cache {
     fn load() -> Result<Cache, Error> {
         let path = xdg_basedir::get_cache_home()?.join("bitbar/plugin/wurstmineberg/avatars.json");
-        if path.exists() {
-            return Ok(serde_json::from_reader(File::open(path)?)?);
+        Ok(if path.exists() {
+            serde_json::from_reader(File::open(path)?)?
         } else {
-            Ok(Cache::default())
-        }
+            Cache::default()
+        })
     }
 
     fn save(self) -> Result<(), Error> {
@@ -263,7 +296,7 @@ struct Status {
     #[serde(default)]
     list: Vec<Uid>,
     running: bool,
-    version: String
+    version: String,
 }
 
 impl Status {
@@ -278,7 +311,7 @@ impl Status {
 
 #[derive(Debug, Deserialize)]
 struct People {
-    people: HashMap<Uid, Person>
+    people: HashMap<Uid, Person>,
 }
 
 impl People {
@@ -299,95 +332,7 @@ impl People {
 struct AvatarInfo {
     url: Url,
     #[serde(default)]
-    fallbacks: Vec<AvatarInfo>
-}
-
-fn bitbar() -> Result<Menu, Error> {
-    let current_exe = env::current_exe()?;
-    let data = Data::load()?;
-    if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
-        return Ok(Menu::default());
-    }
-    let config = Config::load()?;
-    let status = Status::load()?;
-    if !config.show_if_offline && !status.running { return Ok(Menu::default()); }
-    if !config.show_if_empty && status.list.is_empty() { return Ok(Menu::default()); }
-    let people = People::load()?;
-    let mut cache = Cache::load()?;
-    let menu = vec![
-        {
-            let head = ContentItem::new(if !status.running {
-                "!".to_owned()
-            } else if status.list.is_empty() {
-                "".to_owned()
-            } else {
-                status.list.len().to_string()
-            }).template_image(wurstpick(config.zoom))?;
-            if config.single_color && status.list.len() == 1 && people.get(&status.list[0]).map_or(false, |person| person.fav_color.is_some()) {
-                head.color(people.get(&status.list[0]).unwrap().fav_color.as_ref().unwrap())?
-            } else {
-                head
-            }.into()
-        },
-        MenuItem::Sep,
-        {
-            let version_item = ContentItem::new(format!("Version: {}", status.version));
-            match config.version_link {
-                VersionLink::Enabled => version_item.href(format!("https://minecraft.gamepedia.com/Java_Edition_{}", status.version))?,
-                VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.gamepedia.com/Java_Edition_{}", status.version))?),
-                VersionLink::Disabled => version_item
-            }.into()
-        }
-    ].into_iter()
-        .chain(status.list.iter().map(|uid| {
-            let person = people.get(uid).cloned().unwrap_or_default();
-            let mut item = ContentItem::new(person.name.map_or_else(|| uid.to_string(), |name| name.to_string()))
-                .href(format!("https://wurstmineberg.de/people/{}", uid))?
-                .image(cache.get_img(uid.clone(), config.zoom)?)?;
-            if let Some(fav_color) = person.fav_color {
-                item = item.color(fav_color)?;
-            }
-            if let Some(discord) = person.discord {
-                item = item.alt(
-                    ContentItem::new(format!("@{}", discord.name()))
-                        .color("blue")?
-                        .href(discord.url())?
-                        .image(cache.get_img(uid.clone(), config.zoom)?)?
-                );
-            }
-            Ok(item.into())
-        }).collect::<Result<Vec<MenuItem>, Error>>()?)
-        .chain(vec![
-            MenuItem::Sep,
-            ContentItem::new("Start Minecraft")
-                .command(("/usr/bin/open", "-a", "Minecraft"))
-                .alt(ContentItem::new("Open in Discord").color("blue")?.href("https://discordapp.com/channels/88318761228054528/388412978677940226")?)
-                .into()
-        ])
-        .chain(if data.defer_deltas.is_empty() {
-            Vec::default()
-        } else {
-            iter::once(Ok(MenuItem::Sep)).chain(
-                data.defer_deltas.iter().map(|delta| Ok(
-                    ContentItem::new(format!("Defer Until {}", delta.join(" ")))
-                        .command(
-                            Command::try_from(
-                                vec![&format!("{}", current_exe.display()), &format!("defer")]
-                                    .into_iter()
-                                    .chain(delta)
-                                    .collect::<Vec<_>>()
-                            ).map_err(|v| Error::CommandLength(v.len()))?
-                        )
-                        .refresh()
-                        .into()
-                ))
-            )
-            .collect::<Result<_, Error>>()?
-        })
-        //TODO “Defer” submenu if configured
-        .collect();
-    cache.save()?;
-    Ok(menu)
+    fallbacks: Vec<AvatarInfo>,
 }
 
 fn make_true() -> bool { true }
@@ -429,60 +374,101 @@ impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
     }
 }
 
-// subcommands
-
-fn defer(args: impl Iterator<Item = String>) -> Result<(), Error> {
-    let mut args = args.peekable();
+#[bitbar::command]
+fn defer(args: impl Iterator<Item = OsString>) -> Result<(), Error> {
+    let args = args.map(|arg| arg.into_string()).collect::<Result<Vec<_>, _>>()?;
+    if args.is_empty() { return Err(Error::MissingCliArg) }
     let mut data = Data::load()?;
-    data.deferred = Some(if args.peek().is_some() {
-        timespec::next(args)?.ok_or(Error::EmptyTimespec)?
-    } else {
-        return Err(Error::MissingCliArg);
-    });
+    data.deferred = Some(timespec::next(args)?.ok_or(Error::EmptyTimespec)?);
     data.save()?;
     Ok(())
 }
 
-fn main() {
-    let mut args = env::args().skip(1);
-    if let Some(arg) = args.next() {
-        match &arg[..] {
-            "defer" => defer(args).notify("error in defer cmd"),
-            _ => {
-                notify("error in bitbar-wurstmineberg", format!("unknown subcommand: {}", arg));
-                panic!("unknown subcommand: {}", arg);
-            }
-        }
-    } else {
-        match bitbar() {
-            Ok(menu) => { print!("{}", menu); }
-            Err(e) => {
-                let zoom = Config::load().map(|config| config.zoom).unwrap_or(1);
-                let mut error_menu = vec![
-                    ContentItem::new("?").template_image(wurstpick(zoom)).never_unwrap().into(),
-                    MenuItem::Sep
-                ];
-                match e {
-                    Error::Reqwest(e) => {
-                        error_menu.push(MenuItem::new(format!("reqwest error: {}", e)));
-                        if let Some(url) = e.url() {
-                            error_menu.push(ContentItem::new(format!("URL: {}", url))
-                                .href(url.clone()).expect("failed to add link to error menu")
-                                .color("blue").expect("failed to parse the color blue")
-                                .into());
-                        }
-                    }
-                    e => {
-                        error_menu.push(MenuItem::new(&e));
-                        error_menu.push(MenuItem::new(format!("{:?}", e)));
-                    }
-                }
-                error_menu.push(ContentItem::new("Report a Bug")
-                    .href("https://github.com/wurstmineberg/bitbar-server-status/issues/new").expect("failed to add link to error menu")
-                    .color("blue").expect("failed to parse the color blue")
-                    .into());
-                print!("{}", Menu(error_menu));
-            }
-        }
+#[bitbar::main(error_template_image = "../assets/wurstpick-2x.png")] //TODO use wurstpick.png for low-DPI screens?
+fn main() -> Result<Menu, Error> {
+    let current_exe = env::current_exe()?;
+    let data = Data::load()?;
+    if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
+        return Ok(Menu::default())
     }
+    let config = Config::load()?;
+    let status = Status::load()?;
+    if !config.show_if_offline && !status.running { return Ok(Menu::default()); }
+    if !config.show_if_empty && status.list.is_empty() { return Ok(Menu::default()); }
+    let people = People::load()?;
+    let mut cache = Cache::load()?;
+    let menu = vec![
+        {
+            let head = ContentItem::new(if !status.running {
+                "!".to_owned()
+            } else if status.list.is_empty() {
+                "".to_owned()
+            } else {
+                status.list.len().to_string()
+            }).template_image(wurstpick(config.zoom))?;
+            if config.single_color && status.list.len() == 1 && people.get(&status.list[0]).map_or(false, |person| person.fav_color.is_some()) {
+                head.color(people.get(&status.list[0]).unwrap().fav_color.as_ref().unwrap())?
+            } else {
+                head
+            }.into()
+        },
+        MenuItem::Sep,
+        {
+            let version_item = ContentItem::new(format!("Version: {}", status.version));
+            match config.version_link {
+                VersionLink::Enabled => version_item.href(format!("https://minecraft.gamepedia.com/Java_Edition_{}", status.version))?,
+                VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.gamepedia.com/Java_Edition_{}", status.version))?),
+                VersionLink::Disabled => version_item,
+            }.into()
+        },
+    ].into_iter()
+        .chain(status.list.iter().map(|uid| {
+            let person = people.get(uid).cloned().unwrap_or_default();
+            let mut item = ContentItem::new(person.name.map_or_else(|| uid.to_string(), |name| name.to_string()))
+                .href(format!("https://wurstmineberg.de/people/{}", uid))?
+                .image(cache.get_img(uid.clone(), config.zoom)?)?;
+            if let Some(fav_color) = person.fav_color {
+                item = item.color(fav_color)?;
+            }
+            if let Some(discord) = person.discord {
+                item = item.alt(
+                    ContentItem::new(format!("@{}", discord.name()))
+                        .color("blue")?
+                        .href(discord.url())?
+                        .image(cache.get_img(uid.clone(), config.zoom)?)?
+                );
+            }
+            Ok(item.into())
+        }).collect::<Result<Vec<MenuItem>, Error>>()?)
+        .chain(vec![
+            MenuItem::Sep,
+            ContentItem::new("Start Minecraft")
+                .command(("/usr/bin/open", "-a", "Minecraft"))
+                .alt(ContentItem::new("Open in Discord").color("blue")?.href("https://discordapp.com/channels/88318761228054528/388412978677940226")?)
+                .into(),
+        ])
+        .chain(if data.defer_deltas.is_empty() {
+            Vec::default()
+        } else {
+            iter::once(Ok(MenuItem::Sep)).chain(
+                data.defer_deltas.iter().map(|delta| Ok(
+                    ContentItem::new(format!("Defer Until {}", delta.join(" ")))
+                        .command(
+                            Command::try_from(
+                                vec![&format!("{}", current_exe.display()), &format!("defer")]
+                                    .into_iter()
+                                    .chain(delta)
+                                    .collect::<Vec<_>>()
+                            ).map_err(|v| Error::CommandLength(v.len()))?
+                        )
+                        .refresh()
+                        .into()
+                ))
+            )
+            .collect::<Result<_, Error>>()?
+        })
+        //TODO “Defer” submenu if configured
+        .collect();
+    cache.save()?;
+    Ok(menu)
 }

@@ -5,24 +5,28 @@ authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2018"
 
 [dependencies]
-base64 = "0.11"
+base64 = "0.13"
 chrono = "0.4"
 css-color-parser = "0.1.2"
-derive_more = "0.99"
 image = "0.23"
-mime = "*"
-notify-rust = "3"
-num-traits = "*"
+mime = "0.3"
+notify-rust = "4"
+num-traits = "0.2"
 serde_json = "1"
-serenity = "0.7"
+serenity = "0.10"
 xdg-basedir = "1"
 
 [dependencies.bitbar]
-version = "0.3.1"
+version = "0.4"
 features = ["base64"]
 
+[dependencies.derive_more]
+version = "0.99"
+default-features = false
+features = ["from"]
+
 [dependencies.reqwest]
-version = "0.10"
+version = "0.11"
 features = ["blocking", "json"]
 
 [dependencies.serde]
@@ -31,6 +35,7 @@ features = ["derive"]
 
 [dependencies.timespec]
 git = "https://github.com/fenhl/rust-timespec"
+branch = "main"
 
 [dependencies.url]
 version = "2"
