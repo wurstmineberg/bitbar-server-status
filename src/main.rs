@@ -10,6 +10,7 @@ use {
         fs::File,
         io,
         iter,
+        time::Duration,
     },
     bitbar::{
         Command,
@@ -263,19 +264,21 @@ impl Cache {
         Ok(serde_json::to_writer(File::create(path)?, &self)?)
     }
 
-    fn get_img(&mut self, uid: Uid, _ /*zoom*/: u8) -> Result<Image, Error> {
+    fn get_img(&mut self, client: &reqwest::blocking::Client, uid: Uid, _ /*zoom*/: u8) -> Result<Image, Error> {
         self.0.entry(uid.clone())
             .or_try_insert_with(|| {
-                let AvatarInfo { url, fallbacks } = reqwest::blocking::get(&format!("https://wurstmineberg.de/api/v3/person/{}/avatar.json", uid))?
+                let AvatarInfo { url, fallbacks } = client.get(&format!("https://wurstmineberg.de/api/v3/person/{}/avatar.json", uid))
+                    .send()?
                     .error_for_status()?
                     .json()?;
-                let image = reqwest::blocking::get(url)
+                let image = client.get(url)
+                    .send()
                     .map_err(Error::from)
                     .and_then(|response| Ok(response.error_for_status()?))
                     .and_then(|mut response| response.image())
                     .or_else(|e| fallbacks
                         .into_iter()
-                        .filter_map(|avatar_info| reqwest::blocking::get(avatar_info.url).ok()
+                        .filter_map(|avatar_info| client.get(avatar_info.url).send().ok()
                             .and_then(|response| response.error_for_status().ok())
                             .and_then(|mut response| response.image().ok())
                         )
@@ -300,9 +303,10 @@ struct Status {
 }
 
 impl Status {
-    fn load() -> Result<Status, Error> {
+    fn load(client: &reqwest::blocking::Client) -> Result<Status, Error> {
         Ok(
-            reqwest::blocking::get("https://wurstmineberg.de/api/v3/world/wurstmineberg/status.json")?
+            client.get("https://wurstmineberg.de/api/v3/world/wurstmineberg/status.json")
+                .send()?
                 .error_for_status()?
                 .json()?
         )
@@ -315,9 +319,10 @@ struct People {
 }
 
 impl People {
-    fn load() -> Result<People, Error> {
+    fn load(client: &reqwest::blocking::Client) -> Result<People, Error> {
         Ok(
-            reqwest::blocking::get("https://wurstmineberg.de/api/v3/people.json")?
+            client.get("https://wurstmineberg.de/api/v3/people.json")
+                .send()?
                 .error_for_status()?
                 .json()?
         )
@@ -387,15 +392,20 @@ fn defer(args: impl Iterator<Item = OsString>) -> Result<(), Error> {
 #[bitbar::main(error_template_image = "../assets/wurstpick-2x.png")] //TODO use wurstpick.png for low-DPI screens?
 fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(concat!("bitbar-wurstmineberg-status/", env!("CARGO_PKG_VERSION")))
+        .timeout(Duration::from_secs(30))
+        .use_rustls_tls()
+        .build()?;
     let data = Data::load()?;
     if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
         return Ok(Menu::default())
     }
     let config = Config::load()?;
-    let status = Status::load()?;
+    let status = Status::load(&client)?;
     if !config.show_if_offline && !status.running { return Ok(Menu::default()); }
     if !config.show_if_empty && status.list.is_empty() { return Ok(Menu::default()); }
-    let people = People::load()?;
+    let people = People::load(&client)?;
     let mut cache = Cache::load()?;
     let menu = vec![
         {
@@ -426,7 +436,7 @@ fn main() -> Result<Menu, Error> {
             let person = people.get(uid).cloned().unwrap_or_default();
             let mut item = ContentItem::new(person.name.map_or_else(|| uid.to_string(), |name| name.to_string()))
                 .href(format!("https://wurstmineberg.de/people/{}", uid))?
-                .image(cache.get_img(uid.clone(), config.zoom)?)?;
+                .image(cache.get_img(&client, uid.clone(), config.zoom)?)?;
             if let Some(fav_color) = person.fav_color {
                 item = item.color(fav_color)?;
             }
@@ -435,7 +445,7 @@ fn main() -> Result<Menu, Error> {
                     ContentItem::new(format!("@{}", discord.name()))
                         .color("blue")?
                         .href(discord.url())?
-                        .image(cache.get_img(uid.clone(), config.zoom)?)?
+                        .image(cache.get_img(&client, uid.clone(), config.zoom)?)?
                 );
             }
             Ok(item.into())
