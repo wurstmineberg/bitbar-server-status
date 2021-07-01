@@ -4,17 +4,17 @@ use {
     css_color_parser::ColorParseError,
     serde::{
         Deserialize,
-        Serialize
+        Serialize,
     },
     serenity::model::prelude::*,
-    url::Url
+    url::Url,
 };
 
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct Color {
     red: u8,
     green: u8,
-    blue: u8
+    blue: u8,
 }
 
 impl IntoColor for Color {
@@ -29,7 +29,7 @@ impl IntoColor for &Color {
             r: self.red,
             g: self.green,
             b: self.blue,
-            a: 1.0
+            a: 1.0,
         })
     }
 }
@@ -38,7 +38,7 @@ impl IntoColor for &Color {
 pub(crate) struct DiscordData {
     nick: Option<String>,
     snowflake: UserId,
-    username: String
+    username: String,
 }
 
 impl DiscordData {
@@ -56,14 +56,14 @@ impl DiscordData {
 pub(crate) struct Person {
     pub(crate) discord: Option<DiscordData>,
     pub(crate) fav_color: Option<Color>,
-    pub(crate) name: Option<String>
+    pub(crate) name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub(crate) enum Uid {
     Snowflake(UserId),
-    WmbId(String)
+    WmbId(String),
 }
 
 impl<T: Clone + Into<Uid>> From<&T> for Uid {
@@ -76,7 +76,7 @@ impl fmt::Display for Uid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Uid::Snowflake(snowflake) => snowflake.fmt(f),
-            Uid::WmbId(wmb_id) => wmb_id.fmt(f)
+            Uid::WmbId(wmb_id) => wmb_id.fmt(f),
         }
     }
 }

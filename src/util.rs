@@ -4,16 +4,16 @@ use {
         convert::Infallible,
         io::{
             Cursor,
-            prelude::*
-        }
+            prelude::*,
+        },
     },
     image::{
         DynamicImage,
-        ImageFormat
+        ImageFormat,
     },
     mime::Mime,
     reqwest::header::CONTENT_TYPE,
-    crate::Error
+    crate::Error,
 };
 
 pub(crate) trait EntryExt {
@@ -30,7 +30,7 @@ impl<'a, K, V> EntryExt for Entry<'a, K, V> {
     fn or_try_insert_with<E>(self, default: impl FnOnce() -> Result<V, E>) -> Result<&'a mut V, E> {
         Ok(match self {
             Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(default()?)
+            Entry::Vacant(entry) => entry.insert(default()?),
         })
     }
 }
@@ -50,7 +50,7 @@ impl ResponseExt for reqwest::blocking::Response {
                     (mime::IMAGE, mime::JPEG) => ImageFormat::Jpeg,
                     (mime::IMAGE, mime::PNG) => ImageFormat::Png,
                     (mime::IMAGE, subtype) if subtype.as_ref() == "webp" => ImageFormat::WebP,
-                    _ => { return Err(Error::InvalidMime(mime_type)); }
+                    _ => return Err(Error::InvalidMime(mime_type)),
                 };
                 let mut buf = Vec::default();
                 self.read_to_end(&mut buf)?;
@@ -77,7 +77,7 @@ impl<T> ResultNeverExt for Result<T, Infallible> {
     fn never_unwrap(self) -> T {
         match self {
             Ok(x) => x,
-            Err(never) => match never {}
+            Err(never) => match never {},
         }
     }
 }

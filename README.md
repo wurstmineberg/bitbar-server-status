@@ -1,19 +1,20 @@
-This is a [BitBar](https://getbitbar.com/) plugin that shows who is currently online on [Wurstmineberg](https://wurstmineberg.de/).
+This is a BitBar plugin (supporting both [SwiftBar](https://swiftbar.app/) and [xbar](https://xbarapp.com/) that shows who is currently online on [Wurstmineberg](https://wurstmineberg.de/).
 
 For an equivalent Windows app, see [wurstmineberg/systray](https://github.com/wurstmineberg/systray).
 
 # Installation
 
-1. [Install BitBar](https://getbitbar.com/).
-    * If you have [Homebrew](https://brew.sh/), you can also install with `brew cask install bitbar`.
+1. Install [SwiftBar](https://swiftbar.app/) or [xbar](https://xbarapp.com/).
+    * If you're unsure which to install, we recommend SwiftBar, as this plugin has been tested with that.
+    * If you have [Homebrew](https://brew.sh/), you can also install with `brew install --cask swiftbar` or `brew install --cask xbar`.
 2. [Install Rust](https://www.rust-lang.org/tools/install).
     * If you have Homebrew, you can also install with `brew install rust`.
 3. Install the plugin:
     ```sh
     cargo install --git=https://github.com/wurstmineberg/bitbar-server-status --branch=main
     ```
-4. Create a symlink to `~/.cargo/bin/bitbar-wurstmineberg-status` in your BitBar plugin folder. Name it something like `wurstmineberg.45s.o`, where `45s` is the rate of update checks.
-5. Refresh BitBar by opening a menu and pressing <kbd>⌘</kbd><kbd>R</kbd>.
+4. Create a symlink to `~/.cargo/bin/bitbar-wurstmineberg-status` into your SwiftBar/xbar plugin folder. Name it something like `wurstmineberg.45s.o`, where `45s` is the rate of update checks.
+5. Refresh SwiftBar/xbar by opening a menu and pressing <kbd>⌘</kbd><kbd>R</kbd>.
 
 # Configuration
 
