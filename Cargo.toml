@@ -5,10 +5,11 @@ authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2018"
 
 [dependencies]
-base64 = "0.13"
+async-trait = "0.1"
 chrono = "0.4"
 css-color-parser = "0.1.2"
 image = "0.23"
+itertools = "0.10"
 mime = "0.3"
 notify-rust = "4"
 num-traits = "0.2"
@@ -28,7 +29,7 @@ features = ["from"]
 [dependencies.reqwest]
 version = "0.11"
 default-features = false
-features = ["blocking", "json", "rustls-tls", "trust-dns"]
+features = ["json", "rustls-tls", "trust-dns"]
 
 [dependencies.serde]
 version = "1"

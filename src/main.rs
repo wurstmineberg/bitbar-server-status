@@ -1,15 +1,19 @@
-#![deny(rust_2018_idioms, unused, unused_import_braces, unused_qualifications, warnings)]
+#![deny(rust_2018_idioms, unused, unused_crate_dependencies, unused_import_braces, unused_qualifications, warnings)]
 
 use {
     std::{
-        collections::HashMap,
+        borrow::Cow,
+        collections::{
+            BTreeMap,
+            HashMap,
+            hash_map,
+        },
         convert::Infallible,
         env,
         ffi::OsString,
         fmt,
         fs::File,
         io,
-        iter,
         time::Duration,
     },
     bitbar::{
@@ -27,6 +31,7 @@ use {
         ImageFormat,
         imageops::FilterType,
     },
+    itertools::Itertools as _,
     mime::Mime,
     notify_rust::Notification,
     num_traits::One,
@@ -40,7 +45,6 @@ use {
     crate::{
         model::*,
         util::{
-            EntryExt as _,
             ResponseExt as _,
             ResultNeverExt as _,
         },
@@ -49,6 +53,8 @@ use {
 
 mod model;
 mod util;
+
+const MAIN_WORLD: &str = "wurstmineberg";
 
 #[derive(Debug, From)]
 enum Error {
@@ -264,33 +270,39 @@ impl Cache {
         Ok(serde_json::to_writer(File::create(path)?, &self)?)
     }
 
-    fn get_img(&mut self, client: &reqwest::blocking::Client, uid: Uid, _ /*zoom*/: u8) -> Result<Image, Error> {
-        self.0.entry(uid.clone())
-            .or_try_insert_with(|| {
+    async fn get_img(&mut self, client: &reqwest::Client, uid: Uid, _ /*zoom*/: u8) -> Result<Image, Error> {
+        Ok(match self.0.entry(uid.clone()) {
+            hash_map::Entry::Occupied(entry) => entry.get().into(),
+            hash_map::Entry::Vacant(entry) => (&entry.insert({
                 let AvatarInfo { url, fallbacks } = client.get(&format!("https://wurstmineberg.de/api/v3/person/{}/avatar.json", uid))
-                    .send()?
+                    .send().await?
                     .error_for_status()?
-                    .json()?;
-                let image = client.get(url)
-                    .send()
+                    .json().await?;
+                let response = client.get(url)
+                    .send().await
                     .map_err(Error::from)
-                    .and_then(|response| Ok(response.error_for_status()?))
-                    .and_then(|mut response| response.image())
-                    .or_else(|e| fallbacks
-                        .into_iter()
-                        .filter_map(|avatar_info| client.get(avatar_info.url).send().ok()
-                            .and_then(|response| response.error_for_status().ok())
-                            .and_then(|mut response| response.image().ok())
-                        )
-                        .next()
-                        .ok_or(e)
-                    )?;
+                    .and_then(|response| Ok(response.error_for_status()?));
+                let mut image = match response {
+                    Ok(response) => response.image().await,
+                    Err(e) => Err(e),
+                };
+                if image.is_err() {
+                    for AvatarInfo { url, .. } in fallbacks {
+                        if let Ok(response) = client.get(url).send().await.and_then(|response| response.error_for_status()) {
+                            if let Ok(new_image) = response.image().await {
+                                image = Ok(new_image);
+                                break
+                            }
+                        }
+                    }
+                }
+                let image = image?;
                 //TODO resize to 16 * zoom and write with DPI 72 * zoom, see https://github.com/image-rs/image/issues/911
                 let mut buf = Vec::default();
                 image.resize_exact(16, 16, FilterType::Nearest).write_to(&mut buf, ImageFormat::Png)?;
-                Ok(buf)
-            })
-            .map(|buf| (&buf).into())
+                buf
+            })).into(),
+        })
     }
 }
 
@@ -303,12 +315,13 @@ struct Status {
 }
 
 impl Status {
-    fn load(client: &reqwest::blocking::Client) -> Result<Status, Error> {
+    async fn load(client: &reqwest::Client) -> Result<BTreeMap<String, Status>, Error> {
         Ok(
-            client.get("https://wurstmineberg.de/api/v3/world/wurstmineberg/status.json")
-                .send()?
+            client.get("https://wurstmineberg.de/api/v3/server/worlds.json")
+                .query(&[("list", "1")])
+                .send().await?
                 .error_for_status()?
-                .json()?
+                .json().await?
         )
     }
 }
@@ -319,12 +332,12 @@ struct People {
 }
 
 impl People {
-    fn load(client: &reqwest::blocking::Client) -> Result<People, Error> {
+    async fn load(client: &reqwest::Client) -> Result<People, Error> {
         Ok(
             client.get("https://wurstmineberg.de/api/v3/people.json")
-                .send()?
+                .send().await?
                 .error_for_status()?
-                .json()?
+                .json().await?
         )
     }
 
@@ -390,9 +403,9 @@ fn defer(args: impl Iterator<Item = OsString>) -> Result<(), Error> {
 }
 
 #[bitbar::main(error_template_image = "../assets/wurstpick-2x.png")] //TODO use wurstpick.png for low-DPI screens?
-fn main() -> Result<Menu, Error> {
+async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
-    let client = reqwest::blocking::Client::builder()
+    let client = reqwest::Client::builder()
         .user_agent(concat!("bitbar-wurstmineberg-status/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
         .use_rustls_tls()
@@ -402,83 +415,81 @@ fn main() -> Result<Menu, Error> {
         return Ok(Menu::default())
     }
     let config = Config::load()?;
-    let status = Status::load(&client)?;
-    if !config.show_if_offline && !status.running { return Ok(Menu::default()); }
-    if !config.show_if_empty && status.list.is_empty() { return Ok(Menu::default()); }
-    let people = People::load(&client)?;
+    let statuses = Status::load(&client).await?;
+    if statuses.values().all(|status| status.list.is_empty())
+    && !if statuses[MAIN_WORLD].running { config.show_if_empty } else { config.show_if_offline } {
+        return Ok(Menu::default())
+    }
+    let people = People::load(&client).await?;
     let mut cache = Cache::load()?;
-    let menu = vec![
-        {
-            let head = ContentItem::new(if !status.running {
-                "!".to_owned()
-            } else if status.list.is_empty() {
-                "".to_owned()
-            } else {
-                status.list.len().to_string()
-            }).template_image(wurstpick(config.zoom))?;
-            if config.single_color && status.list.len() == 1 && people.get(&status.list[0]).map_or(false, |person| person.fav_color.is_some()) {
-                head.color(people.get(&status.list[0]).unwrap().fav_color.as_ref().unwrap())?
-            } else {
-                head
-            }.into()
-        },
-        MenuItem::Sep,
-        {
-            let version_item = ContentItem::new(format!("Version: {}", status.version));
-            match config.version_link {
-                VersionLink::Enabled => version_item.href(format!("https://minecraft.gamepedia.com/Java_Edition_{}", status.version))?,
-                VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.gamepedia.com/Java_Edition_{}", status.version))?),
-                VersionLink::Disabled => version_item,
-            }.into()
-        },
-    ].into_iter()
-        .chain(status.list.iter().map(|uid| {
-            let person = people.get(uid).cloned().unwrap_or_default();
-            let mut item = ContentItem::new(person.name.map_or_else(|| uid.to_string(), |name| name.to_string()))
-                .href(format!("https://wurstmineberg.de/people/{}", uid))?
-                .image(cache.get_img(&client, uid.clone(), config.zoom)?)?;
-            if let Some(fav_color) = person.fav_color {
-                item = item.color(fav_color)?;
-            }
-            if let Some(discord) = person.discord {
-                item = item.alt(
-                    ContentItem::new(format!("@{}", discord.name()))
-                        .color("blue")?
-                        .href(discord.url())?
-                        .image(cache.get_img(&client, uid.clone(), config.zoom)?)?
-                );
-            }
-            Ok(item.into())
-        }).collect::<Result<Vec<MenuItem>, Error>>()?)
-        .chain(vec![
-            MenuItem::Sep,
-            ContentItem::new("Start Minecraft")
-                .command(("/usr/bin/open", "-a", "Minecraft"))
-                .alt(ContentItem::new("Open in Discord").color("blue")?.href("https://discordapp.com/channels/88318761228054528/388412978677940226")?)
-                .into(),
-        ])
-        .chain(if data.defer_deltas.is_empty() {
-            Vec::default()
+    let mut menu = vec![{
+        let total = statuses.values().map(|status| status.list.len()).sum::<usize>();
+        let head = ContentItem::new(if total > 0 {
+            Cow::Owned(total.to_string())
+        } else if !statuses[MAIN_WORLD].running {
+            Cow::Borrowed("!")
         } else {
-            iter::once(Ok(MenuItem::Sep)).chain(
-                data.defer_deltas.iter().map(|delta| Ok(
-                    ContentItem::new(format!("Defer Until {}", delta.join(" ")))
-                        .command(
-                            Command::try_from(
-                                vec![&format!("{}", current_exe.display()), &format!("defer")]
-                                    .into_iter()
-                                    .chain(delta)
-                                    .collect::<Vec<_>>()
-                            ).map_err(|v| Error::CommandLength(v.len()))?
-                        )
-                        .refresh()
-                        .into()
-                ))
-            )
-            .collect::<Result<_, Error>>()?
-        })
-        //TODO “Defer” submenu if configured
-        .collect();
+            Cow::Borrowed("")
+        }).template_image(wurstpick(config.zoom))?;
+        if let Some(fav_color) = (config.single_color && total == 1).then(|| ())
+            .and_then(|()| people.get(statuses.values().flat_map(|status| &status.list).exactly_one().expect("total == 1 but not exactly 1 player online")))
+            .and_then(|person| person.fav_color)
+        { head.color(fav_color)? } else { head }.into()
+    }];
+    for (world_name, status) in statuses {
+        if (world_name == MAIN_WORLD && !status.running) || !status.list.is_empty() {
+            menu.push(MenuItem::Sep);
+            menu.push(MenuItem::new(world_name));
+            menu.push({
+                let version_item = ContentItem::new(format!("Version: {}", status.version));
+                match config.version_link {
+                    VersionLink::Enabled => version_item.href(format!("https://minecraft.fandom.com/wiki/Java_Edition_{}", status.version))?,
+                    VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.fandom.com/wiki/Java_Edition_{}", status.version))?),
+                    VersionLink::Disabled => version_item,
+                }.into()
+            });
+            for uid in status.list {
+                let person = people.get(&uid).cloned().unwrap_or_default();
+                let mut item = ContentItem::new(person.name.map_or_else(|| uid.to_string(), |name| name.to_string()))
+                    .href(format!("https://wurstmineberg.de/people/{}", uid))?
+                    .image(cache.get_img(&client, uid.clone(), config.zoom).await?)?;
+                if let Some(fav_color) = person.fav_color {
+                    item = item.color(fav_color)?;
+                }
+                if let Some(discord) = person.discord {
+                    item = item.alt(
+                        ContentItem::new(format!("@{}", discord.name()))
+                            .color("blue")?
+                            .href(discord.url())?
+                            .image(cache.get_img(&client, uid.clone(), config.zoom).await?)?
+                    );
+                }
+                menu.push(item.into());
+            }
+        }
+    }
+    menu.push(MenuItem::Sep);
+    menu.push(ContentItem::new("Start Minecraft")
+        .command(("/usr/bin/open", "-a", "Minecraft"))
+        .alt(ContentItem::new("Open in Discord").color("blue")?.href("https://discordapp.com/channels/88318761228054528/388412978677940226")?)
+        .into());
+    //TODO fix “Defer” submenu to be based on config?
+    if !data.defer_deltas.is_empty() {
+        menu.push(MenuItem::Sep);
+        for delta in data.defer_deltas {
+            menu.push(ContentItem::new(format!("Defer Until {}", delta.join(" ")))
+                .command(
+                    Command::try_from(
+                        vec![format!("{}", current_exe.display()), format!("defer")]
+                            .into_iter()
+                            .chain(delta)
+                            .collect::<Vec<_>>()
+                    ).map_err(|v| Error::CommandLength(v.len()))?
+                )
+                .refresh()
+                .into());
+        }
+    }
     cache.save()?;
-    Ok(menu)
+    Ok(Menu(menu))
 }

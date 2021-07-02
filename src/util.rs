@@ -1,12 +1,9 @@
 use {
     std::{
-        collections::hash_map::Entry,
         convert::Infallible,
-        io::{
-            Cursor,
-            prelude::*,
-        },
+        io::Cursor,
     },
+    async_trait::async_trait,
     image::{
         DynamicImage,
         ImageFormat,
@@ -16,31 +13,14 @@ use {
     crate::Error,
 };
 
-pub(crate) trait EntryExt {
-    type V;
-    type VRef;
-
-    fn or_try_insert_with<E>(self, default: impl FnOnce() -> Result<Self::V, E>) -> Result<Self::VRef, E>;
-}
-
-impl<'a, K, V> EntryExt for Entry<'a, K, V> {
-    type V = V;
-    type VRef = &'a mut V;
-
-    fn or_try_insert_with<E>(self, default: impl FnOnce() -> Result<V, E>) -> Result<&'a mut V, E> {
-        Ok(match self {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(default()?),
-        })
-    }
-}
-
+#[async_trait]
 pub(crate) trait ResponseExt {
-    fn image(&mut self) -> Result<DynamicImage, Error>;
+    async fn image(self) -> Result<DynamicImage, Error>;
 }
 
-impl ResponseExt for reqwest::blocking::Response {
-    fn image(&mut self) -> Result<DynamicImage, Error> {
+#[async_trait]
+impl ResponseExt for reqwest::Response {
+    async fn image(self) -> Result<DynamicImage, Error> {
         Ok(match self.headers().get(CONTENT_TYPE) {
             Some(content_type) => {
                 let mime_type = content_type.to_str()?.parse::<Mime>()?;
@@ -52,13 +32,11 @@ impl ResponseExt for reqwest::blocking::Response {
                     (mime::IMAGE, subtype) if subtype.as_ref() == "webp" => ImageFormat::WebP,
                     _ => return Err(Error::InvalidMime(mime_type)),
                 };
-                let mut buf = Vec::default();
-                self.read_to_end(&mut buf)?;
+                let buf = self.bytes().await?;
                 image::load(Cursor::new(buf), format)?
             }
             None => {
-                let mut buf = Vec::default();
-                self.read_to_end(&mut buf)?;
+                let buf = self.bytes().await?;
                 image::load_from_memory(&buf)?
             }
         })

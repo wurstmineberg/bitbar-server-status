@@ -10,7 +10,7 @@ use {
     url::Url,
 };
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 pub(crate) struct Color {
     red: u8,
     green: u8,
