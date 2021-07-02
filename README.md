@@ -28,4 +28,5 @@ You can optionally configure the behavior of the plugin by creating a [JSON](htt
     * `true`: Clicking on the version info menu item opens the [Minecraft Wiki](https://minecraft.fandom.com/) article for that version. This is the default.
     * `"alt"`: Holding <kbd>⌥</kbd> turns the version info menu item into a link to the Minecraft Wiki article for that version.
     * `false`: The version info item is still displayed but cannot be clicked.
+* `versionMatch`: An object mapping Minecraft launcher profile IDs to Wurstmineberg world names. Each launcher profile's selected Minecraft version will be kept in sync with the version running on that world.
 * `zoom`: A number indicating the logical pixel scale, e.g. `2` on most modern Mac displays. Defaults to `1`.

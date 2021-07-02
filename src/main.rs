@@ -6,13 +6,11 @@ use {
         collections::{
             BTreeMap,
             HashMap,
-            hash_map,
         },
         convert::Infallible,
         env,
         ffi::OsString,
         fmt,
-        fs::File,
         io,
         time::Duration,
     },
@@ -26,31 +24,26 @@ use {
     chrono::prelude::*,
     css_color_parser::ColorParseError,
     derive_more::From,
-    image::{
-        ImageError,
-        ImageFormat,
-        imageops::FilterType,
-    },
+    image::ImageError,
     itertools::Itertools as _,
     mime::Mime,
     notify_rust::Notification,
-    num_traits::One,
-    serde::{
-        Deserialize,
-        Deserializer,
-        Serialize,
-        de::Visitor,
-    },
+    serde::Deserialize,
     url::Url,
     crate::{
-        model::*,
-        util::{
-            ResponseExt as _,
-            ResultNeverExt as _,
+        files::{
+            Cache,
+            Config,
+            Data,
+            LauncherData,
+            VersionLink,
         },
+        model::*,
+        util::ResultNeverExt as _,
     },
 };
 
+mod files;
 mod model;
 mod util;
 
@@ -69,9 +62,12 @@ enum Error {
     Json(serde_json::Error),
     MimeFromStr(mime::FromStrError),
     MissingCliArg,
+    MissingHomeDir,
     OsString(OsString),
     Reqwest(reqwest::Error),
     Timespec(timespec::Error),
+    UnknownLauncherProfile(String),
+    UnknownWorldName(String, String),
     Url(url::ParseError),
     Xdg(xdg_basedir::Error),
 }
@@ -95,13 +91,16 @@ impl fmt::Display for Error {
             Error::Json(e) => e.fmt(f),
             Error::MimeFromStr(e) => e.fmt(f),
             Error::MissingCliArg => write!(f, "missing command-line argument(s)"),
+            Error::MissingHomeDir => write!(f, "could not find your user folder"),
             Error::OsString(_) => write!(f, "command argument was not valid UTF-8"),
             Error::Reqwest(e) => if let Some(url) = e.url() {
                 write!(f, "reqwest error at {}: {}", url, e)
             } else {
                 write!(f, "reqwest error: {}", e)
             },
-            Error::Timespec(e) => write!(f, "timespec error: {:?}", e), //TODO implement Display fir timespec::Error and use here
+            Error::Timespec(e) => e.fmt(f),
+            Error::UnknownLauncherProfile(profile_id) => write!(f, "no profile named “{}” in launcher data", profile_id),
+            Error::UnknownWorldName(profile_id, world_name) => write!(f, "unknown world name “{}” in versionMatch config for profile {}", world_name, profile_id),
             Error::Url(e) => e.fmt(f),
             Error::Xdg(e) => e.fmt(f),
         }
@@ -135,172 +134,6 @@ impl From<Error> for Menu {
             .color("blue").expect("failed to parse the color blue")
             .into());
         Menu(error_menu)
-    }
-}
-
-#[derive(Debug)]
-enum VersionLink {
-    Enabled,
-    Alternate,
-    Disabled,
-}
-
-impl Default for VersionLink {
-    fn default() -> VersionLink {
-        VersionLink::Enabled
-    }
-}
-
-impl<'de> Deserialize<'de> for VersionLink {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<VersionLink, D::Error> {
-        deserializer.deserialize_any(VersionLinkVisitor)
-    }
-}
-
-struct VersionLinkVisitor;
-
-impl<'de> Visitor<'de> for VersionLinkVisitor {
-    type Value = VersionLink;
-
-    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "a boolean or the string \"alt\"")
-    }
-
-    fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<VersionLink, E> {
-        Ok(if v { VersionLink::Enabled } else { VersionLink::Disabled })
-    }
-
-    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<VersionLink, E> {
-        if v == "alt" {
-            Ok(VersionLink::Alternate)
-        } else {
-            Err(E::invalid_value(serde::de::Unexpected::Str(v), &self))
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Config {
-    #[serde(default)]
-    defer_specs: Vec<Vec<String>>,
-    #[serde(default)]
-    show_if_empty: bool,
-    #[serde(default)]
-    show_if_offline: bool,
-    #[serde(default = "make_true")]
-    single_color: bool,
-    #[serde(default)]
-    version_link: VersionLink,
-    #[serde(default = "One::one")]
-    zoom: u8,
-}
-
-impl Config {
-    fn load() -> Result<Config, Error> {
-        let dirs = xdg_basedir::get_config_home().into_iter().chain(xdg_basedir::get_config_dirs());
-        Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugins/wurstmineberg.json")).ok())
-            .next().map_or(Ok(Config::default()), serde_json::from_reader)?)
-    }
-}
-
-impl Default for Config {
-    fn default() -> Config {
-        Config {
-            defer_specs: Vec::default(),
-            show_if_empty: false,
-            show_if_offline: false,
-            single_color: true,
-            version_link: VersionLink::Enabled,
-            zoom: 1,
-        }
-    }
-}
-
-#[derive(Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", default)]
-pub(crate) struct Data {
-    pub(crate) deferred: Option<DateTime<Utc>>,
-}
-
-impl Data {
-    fn load() -> Result<Data, Error> {
-        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
-        Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugin-cache/wurstmineberg.json")).ok())
-            .next().map_or(Ok(Data::default()), serde_json::from_reader)?)
-    }
-
-    fn save(&mut self) -> Result<(), Error> {
-        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
-        for data_dir in dirs {
-            let data_path = data_dir.join("bitbar/plugin-cache/wurstmineberg.json");
-            if data_path.exists() {
-                if let Some(()) = File::create(data_path).ok()
-                    .and_then(|data_file| serde_json::to_writer_pretty(data_file, &self).ok())
-                {
-                    return Ok(())
-                }
-            }
-        }
-        let data_path = xdg_basedir::get_data_home()?.join("bitbar/plugin-cache/wurstmineberg.json");
-        let data_file = File::create(data_path)?;
-        serde_json::to_writer_pretty(data_file, &self)?;
-        Ok(())
-    }
-}
-
-#[derive(Debug, Default, Deserialize, Serialize)]
-#[serde(transparent)]
-struct Cache(HashMap<Uid, Vec<u8>>);
-
-impl Cache {
-    fn load() -> Result<Cache, Error> {
-        let path = xdg_basedir::get_cache_home()?.join("bitbar/plugin/wurstmineberg/avatars.json");
-        Ok(if path.exists() {
-            serde_json::from_reader(File::open(path)?)?
-        } else {
-            Cache::default()
-        })
-    }
-
-    fn save(self) -> Result<(), Error> {
-        let path = xdg_basedir::get_cache_home()?.join("bitbar/plugin/wurstmineberg/avatars.json");
-        Ok(serde_json::to_writer(File::create(path)?, &self)?)
-    }
-
-    async fn get_img(&mut self, client: &reqwest::Client, uid: Uid, _ /*zoom*/: u8) -> Result<Image, Error> {
-        Ok(match self.0.entry(uid.clone()) {
-            hash_map::Entry::Occupied(entry) => entry.get().into(),
-            hash_map::Entry::Vacant(entry) => (&entry.insert({
-                let AvatarInfo { url, fallbacks } = client.get(&format!("https://wurstmineberg.de/api/v3/person/{}/avatar.json", uid))
-                    .send().await?
-                    .error_for_status()?
-                    .json().await?;
-                let response = client.get(url)
-                    .send().await
-                    .map_err(Error::from)
-                    .and_then(|response| Ok(response.error_for_status()?));
-                let mut image = match response {
-                    Ok(response) => response.image().await,
-                    Err(e) => Err(e),
-                };
-                if image.is_err() {
-                    for AvatarInfo { url, .. } in fallbacks {
-                        if let Ok(response) = client.get(url).send().await.and_then(|response| response.error_for_status()) {
-                            if let Ok(new_image) = response.image().await {
-                                image = Ok(new_image);
-                                break
-                            }
-                        }
-                    }
-                }
-                let image = image?;
-                //TODO resize to 16 * zoom and write with DPI 72 * zoom, see https://github.com/image-rs/image/issues/911
-                let mut buf = Vec::default();
-                image.resize_exact(16, 16, FilterType::Nearest).write_to(&mut buf, ImageFormat::Png)?;
-                buf
-            })).into(),
-        })
     }
 }
 
@@ -350,8 +183,6 @@ struct AvatarInfo {
     #[serde(default)]
     fallbacks: Vec<AvatarInfo>,
 }
-
-fn make_true() -> bool { true }
 
 fn wurstpick(zoom: u8) -> Image {
     if zoom >= 2 {
@@ -414,6 +245,19 @@ async fn main() -> Result<Menu, Error> {
     }
     let config = Config::load()?;
     let statuses = Status::load(&client).await?;
+    if !config.version_match.is_empty() {
+        let mut launcher_data = LauncherData::load()?;
+        let mut modified = false;
+        for (profile_id, world_name) in config.version_match {
+            let launcher_profile = launcher_data.profiles.get_mut(&profile_id).ok_or_else(|| Error::UnknownLauncherProfile(profile_id.clone()))?;
+            let world_version = &statuses.get(&world_name).ok_or_else(|| Error::UnknownWorldName(profile_id, world_name))?.version;
+            if launcher_profile.last_version_id != *world_version {
+                launcher_profile.last_version_id = world_version.clone();
+                modified = true;
+            }
+        }
+        if modified { launcher_data.save()? }
+    }
     if statuses.values().all(|status| status.list.is_empty())
     && !if statuses[MAIN_WORLD].running { config.show_if_empty } else { config.show_if_offline } {
         return Ok(Menu::default())

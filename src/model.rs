@@ -59,7 +59,7 @@ pub(crate) struct Person {
     pub(crate) name: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(untagged)]
 pub(crate) enum Uid {
     Snowflake(UserId),
