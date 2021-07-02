@@ -183,7 +183,7 @@ impl<'de> Visitor<'de> for VersionLinkVisitor {
 #[serde(rename_all = "camelCase")]
 struct Config {
     #[serde(default)]
-    defer: Vec<String>,
+    defer_specs: Vec<Vec<String>>,
     #[serde(default)]
     show_if_empty: bool,
     #[serde(default)]
@@ -207,7 +207,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            defer: Vec::default(),
+            defer_specs: Vec::default(),
             show_if_empty: false,
             show_if_offline: false,
             single_color: true,
@@ -220,8 +220,6 @@ impl Default for Config {
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub(crate) struct Data {
-    #[serde(default)]
-    pub(crate) defer_deltas: Vec<Vec<String>>,
     pub(crate) deferred: Option<DateTime<Utc>>,
 }
 
@@ -473,16 +471,15 @@ async fn main() -> Result<Menu, Error> {
         .command(("/usr/bin/open", "-a", "Minecraft"))
         .alt(ContentItem::new("Open in Discord").color("blue")?.href("https://discordapp.com/channels/88318761228054528/388412978677940226")?)
         .into());
-    //TODO fix “Defer” submenu to be based on config?
-    if !data.defer_deltas.is_empty() {
+    if !config.defer_specs.is_empty() {
         menu.push(MenuItem::Sep);
-        for delta in data.defer_deltas {
-            menu.push(ContentItem::new(format!("Defer Until {}", delta.join(" ")))
+        for spec in config.defer_specs {
+            menu.push(ContentItem::new(format!("Defer Until {}", spec.join(" ")))
                 .command(
                     Command::try_from(
                         vec![format!("{}", current_exe.display()), format!("defer")]
                             .into_iter()
-                            .chain(delta)
+                            .chain(spec)
                             .collect::<Vec<_>>()
                     ).map_err(|v| Error::CommandLength(v.len()))?
                 )
