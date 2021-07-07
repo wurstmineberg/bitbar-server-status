@@ -1,4 +1,4 @@
-This is a BitBar plugin (supporting both [SwiftBar](https://swiftbar.app/) and [xbar](https://xbarapp.com/) that shows who is currently online on [Wurstmineberg](https://wurstmineberg.de/).
+This is a BitBar plugin (supporting both [SwiftBar](https://swiftbar.app/) and [xbar](https://xbarapp.com/)) that shows who is currently online on [Wurstmineberg](https://wurstmineberg.de/).
 
 For an equivalent Windows app, see [wurstmineberg/systray](https://github.com/wurstmineberg/systray).
 
