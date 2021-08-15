@@ -109,11 +109,7 @@ impl fmt::Display for Error {
 
 impl From<Error> for Menu {
     fn from(e: Error) -> Menu {
-        let zoom = Config::load().map(|config| config.zoom).unwrap_or(1);
-        let mut error_menu = vec![
-            ContentItem::new("?").template_image(wurstpick(zoom)).never_unwrap().into(),
-            MenuItem::Sep
-        ];
+        let mut error_menu = Vec::default();
         match e {
             Error::Reqwest(e) => {
                 error_menu.push(MenuItem::new(format!("reqwest error: {}", e)));
