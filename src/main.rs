@@ -282,13 +282,15 @@ async fn main() -> Result<Menu, Error> {
         if (world_name == MAIN_WORLD && !status.running) || !status.list.is_empty() {
             menu.push(MenuItem::Sep);
             menu.push(MenuItem::new(world_name));
-            menu.push({
+            menu.push(if status.running {
                 let version_item = ContentItem::new(format!("Version: {}", status.version));
                 match config.version_link {
                     VersionLink::Enabled => version_item.href(format!("https://minecraft.fandom.com/wiki/Java_Edition_{}", status.version))?,
                     VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.fandom.com/wiki/Java_Edition_{}", status.version))?),
                     VersionLink::Disabled => version_item,
                 }.into()
+            } else {
+                MenuItem::new("Offline") //TODO add link to Discord channel?
             });
             for uid in status.list {
                 let person = people.get(&uid).cloned().unwrap_or_default();
@@ -313,7 +315,6 @@ async fn main() -> Result<Menu, Error> {
     menu.push(MenuItem::Sep);
     menu.push(ContentItem::new("Start Minecraft")
         .command(("/usr/bin/open", "-a", "Minecraft"))
-        .alt(ContentItem::new("Open in Discord").color("blue")?.href("https://discordapp.com/channels/88318761228054528/388412978677940226")?)
         .into());
     if !config.defer_specs.is_empty() {
         menu.push(MenuItem::Sep);
