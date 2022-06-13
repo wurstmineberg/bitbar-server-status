@@ -1,31 +1,29 @@
 [package]
 name = "bitbar-wurstmineberg-status"
-version = "2.2.0"
+version = "2.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-chrono = "0.4"
 css-color-parser = "0.1.2"
-directories = "3"
-image = "0.23"
+directories = "4"
+image = "0.24"
 itertools = "0.10"
 mime = "0.3"
 notify-rust = "4"
 num-traits = "0.2"
 serde_json = "1"
-serenity = "0.10"
+thiserror = "1"
 xdg-basedir = "1"
 
 [dependencies.bitbar]
-version = "0.4"
+version = "0.8"
 features = ["base64"]
 
-[dependencies.derive_more]
-version = "0.99"
-default-features = false
-features = ["from"]
+[dependencies.chrono]
+version = "0.4"
+features = ["serde"]
 
 [dependencies.reqwest]
 version = "0.11"
@@ -35,6 +33,10 @@ features = ["json", "rustls-tls", "trust-dns"]
 [dependencies.serde]
 version = "1"
 features = ["derive"]
+
+[dependencies.serenity]
+version = "0.11"
+default-features = false
 
 [dependencies.timespec]
 git = "https://github.com/fenhl/rust-timespec"

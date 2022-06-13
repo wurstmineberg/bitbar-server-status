@@ -9,21 +9,21 @@ use {
         },
         convert::Infallible,
         env,
-        ffi::OsString,
         fmt,
         io,
         time::Duration,
     },
     bitbar::{
-        Command,
         ContentItem,
-        Image,
         Menu,
         MenuItem,
+        attr::{
+            Command,
+            Image,
+        },
     },
     chrono::prelude::*,
     css_color_parser::ColorParseError,
-    derive_more::From,
     image::ImageError,
     itertools::Itertools as _,
     mime::Mime,
@@ -49,61 +49,35 @@ mod util;
 
 const MAIN_WORLD: &str = "wurstmineberg";
 
-#[derive(Debug, From)]
+#[derive(Debug, thiserror::Error)]
 enum Error {
-    ColorParse(ColorParseError),
-    #[from(ignore)]
+    #[error(transparent)] ColorParse(#[from] ColorParseError),
+    #[error(transparent)] Header(#[from] reqwest::header::ToStrError),
+    #[error(transparent)] Image(#[from] ImageError),
+    #[error(transparent)] Io(#[from] io::Error),
+    #[error(transparent)] Json(#[from] serde_json::Error),
+    #[error(transparent)] MimeFromStr(#[from] mime::FromStrError),
+    #[error(transparent)] Reqwest(#[from] reqwest::Error),
+    #[error(transparent)] Timespec(#[from] timespec::Error),
+    #[error(transparent)] Url(#[from] url::ParseError),
+    #[error(transparent)] Xdg(#[from] xdg_basedir::Error),
+    #[error("BitBar command should have 1–6 parameters including the command name, but this one has {0}")]
     CommandLength(usize),
+    #[error("given timespec matches no dates")]
     EmptyTimespec,
-    Header(reqwest::header::ToStrError),
+    #[error("{0} is not a known image MIME type")]
     InvalidMime(Mime),
-    Image(ImageError),
-    Io(io::Error),
-    Json(serde_json::Error),
-    MimeFromStr(mime::FromStrError),
-    MissingCliArg,
+    #[error("could not find your user folder")]
     MissingHomeDir,
-    OsString(OsString),
-    Reqwest(reqwest::Error),
-    Timespec(timespec::Error),
+    #[error("no profile named “{0}” in launcher data")]
     UnknownLauncherProfile(String),
+    #[error("unknown world name “{1}” in versionMatch config for profile {0}")]
     UnknownWorldName(String, String),
-    Url(url::ParseError),
-    Xdg(xdg_basedir::Error),
 }
 
 impl From<Infallible> for Error {
     fn from(never: Infallible) -> Error {
         match never {}
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::ColorParse(e) => e.fmt(f),
-            Error::CommandLength(num_params) => write!(f, "BitBar command should have 1–6 parameters including the command name, but this one has {}", num_params),
-            Error::EmptyTimespec => write!(f, "given timespec matches no dates"),
-            Error::Header(e) => e.fmt(f),
-            Error::InvalidMime(mime) => write!(f, "{} is not a known image MIME type", mime),
-            Error::Image(e) => write!(f, "image error: {}", e),
-            Error::Io(e) => e.fmt(f),
-            Error::Json(e) => e.fmt(f),
-            Error::MimeFromStr(e) => e.fmt(f),
-            Error::MissingCliArg => write!(f, "missing command-line argument(s)"),
-            Error::MissingHomeDir => write!(f, "could not find your user folder"),
-            Error::OsString(_) => write!(f, "command argument was not valid UTF-8"),
-            Error::Reqwest(e) => if let Some(url) = e.url() {
-                write!(f, "reqwest error at {}: {}", url, e)
-            } else {
-                write!(f, "reqwest error: {}", e)
-            },
-            Error::Timespec(e) => e.fmt(f),
-            Error::UnknownLauncherProfile(profile_id) => write!(f, "no profile named “{}” in launcher data", profile_id),
-            Error::UnknownWorldName(profile_id, world_name) => write!(f, "unknown world name “{}” in versionMatch config for profile {}", world_name, profile_id),
-            Error::Url(e) => e.fmt(f),
-            Error::Xdg(e) => e.fmt(f),
-        }
     }
 }
 
@@ -217,17 +191,19 @@ impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
     }
 }
 
-#[bitbar::command]
-fn defer(args: impl Iterator<Item = OsString>) -> Result<(), Error> {
-    let args = args.map(|arg| arg.into_string()).collect::<Result<Vec<_>, _>>()?;
-    if args.is_empty() { return Err(Error::MissingCliArg) }
+#[bitbar::command(varargs)]
+fn defer(timespec: Vec<String>) -> Result<(), Error> {
+    if timespec.is_empty() { return Err(Error::EmptyTimespec) }
     let mut data = Data::load()?;
-    data.deferred = Some(timespec::next(args)?.ok_or(Error::EmptyTimespec)?);
+    data.deferred = Some(timespec::next(timespec)?.ok_or(Error::EmptyTimespec)?);
     data.save()?;
     Ok(())
 }
 
-#[bitbar::main(error_template_image = "../assets/wurstpick-2x.png")] //TODO use wurstpick.png for low-DPI screens?
+#[bitbar::main(
+    error_template_image = "../assets/wurstpick-2x.png", //TODO use wurstpick.png for low-DPI screens?
+    commands(defer),
+)]
 async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let client = reqwest::Client::builder()
@@ -310,7 +286,7 @@ async fn main() -> Result<Menu, Error> {
     }
     menu.push(MenuItem::Sep);
     menu.push(ContentItem::new("Start Minecraft")
-        .command(("/usr/bin/open", "-a", "Minecraft"))
+        .command(("/usr/bin/open", "-a", "Minecraft"))?
         .into());
     if !config.defer_specs.is_empty() {
         menu.push(MenuItem::Sep);
@@ -323,7 +299,7 @@ async fn main() -> Result<Menu, Error> {
                             .chain(spec)
                             .collect::<Vec<_>>()
                     ).map_err(|v| Error::CommandLength(v.len()))?
-                )
+                )?
                 .refresh()
                 .into());
         }

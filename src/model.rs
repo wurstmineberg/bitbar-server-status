@@ -1,7 +1,5 @@
 use {
     std::fmt,
-    bitbar::IntoColor,
-    css_color_parser::ColorParseError,
     serde::{
         Deserialize,
         Serialize,
@@ -17,20 +15,14 @@ pub(crate) struct Color {
     blue: u8,
 }
 
-impl IntoColor for Color {
-    fn into_color(self) -> Result<css_color_parser::Color, ColorParseError> {
-        <&Color as IntoColor>::into_color(&self)
-    }
-}
-
-impl IntoColor for &Color {
-    fn into_color(self) -> Result<css_color_parser::Color, ColorParseError> {
-        Ok(css_color_parser::Color {
-            r: self.red,
-            g: self.green,
-            b: self.blue,
+impl From<Color> for bitbar::attr::Color {
+    fn from(color: Color) -> Self {
+        css_color_parser::Color {
+            r: color.red,
+            g: color.green,
+            b: color.blue,
             a: 1.0,
-        })
+        }.into()
     }
 }
 

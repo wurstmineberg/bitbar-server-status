@@ -6,9 +6,10 @@ use {
         },
         fmt,
         fs::File,
+        io::Cursor,
         path::PathBuf,
     },
-    bitbar::Image,
+    bitbar::attr::Image,
     chrono::prelude::*,
     directories::UserDirs,
     image::{
@@ -192,9 +193,9 @@ impl Cache {
                 }
                 let image = image?;
                 //TODO resize to 16 * zoom and write with DPI 72 * zoom, see https://github.com/image-rs/image/issues/911
-                let mut buf = Vec::default();
+                let mut buf = Cursor::default();
                 image.resize_exact(16, 16, FilterType::Nearest).write_to(&mut buf, ImageFormat::Png)?;
-                buf
+                buf.into_inner()
             })).into(),
         })
     }
