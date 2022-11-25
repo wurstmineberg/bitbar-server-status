@@ -16,6 +16,17 @@ For an equivalent Windows app, see [wurstmineberg/systray](https://github.com/wu
 4. Create a symlink to `~/.cargo/bin/bitbar-wurstmineberg-status` into your SwiftBar/xbar plugin folder. Name it something like `wurstmineberg.45s.o`, where `45s` is the rate of update checks.
 5. Refresh SwiftBar/xbar by opening a menu and pressing <kbd>⌘</kbd><kbd>R</kbd>.
 
+# Updating
+
+1. Install the updater:
+    ```sh
+    cargo install cargo-update
+    ```
+2. Update the plugin (and everything else installed via `cargo install`):
+    ```sh
+    cargo install-update --all --git
+    ```
+
 # Configuration
 
 You can optionally configure the behavior of the plugin by creating a [JSON](https://json.org/) file at `bitbar/plugins/wurstmineberg.json` inside an [XDG](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) config directory. All entries are optional:
