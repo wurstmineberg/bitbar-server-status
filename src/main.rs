@@ -87,9 +87,9 @@ impl From<Error> for Menu {
         let mut error_menu = Vec::default();
         match e {
             Error::Reqwest(e) => {
-                error_menu.push(MenuItem::new(format!("reqwest error: {}", e)));
+                error_menu.push(MenuItem::new(format!("reqwest error: {e}")));
                 if let Some(url) = e.url() {
-                    error_menu.push(ContentItem::new(format!("URL: {}", url))
+                    error_menu.push(ContentItem::new(format!("URL: {url}"))
                         .href(url.clone()).expect("failed to add link to error menu")
                         .color("blue").expect("failed to parse the color blue")
                         .into());
@@ -185,8 +185,8 @@ impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
         match self {
             Ok(t) => t,
             Err(e) => {
-                notify(&summary, format!("{:?}", e));
-                panic!("{}: {:?}", summary, e);
+                notify(&summary, format!("{e:?}"));
+                panic!("{summary}: {e:?}");
             }
         }
     }
@@ -208,7 +208,7 @@ fn defer(timespec: Vec<String>) -> Result<(), Error> {
 async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let client = reqwest::Client::builder()
-        .user_agent(concat!("bitbar-wurstmineberg-status/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
         .use_rustls_tls()
         .build()?;
@@ -217,7 +217,10 @@ async fn main() -> Result<Menu, Error> {
         return Ok(Menu::default())
     }
     let config = Config::load()?;
-    let statuses = Status::load(&client).await?;
+    let mut statuses = Status::load(&client).await?;
+    for status in statuses.values_mut() {
+        status.list.retain(|uid| !config.ignored_players.contains(uid));
+    }
     if !config.version_match.is_empty() {
         let mut launcher_data = LauncherData::load()?;
         let mut modified = false;
@@ -268,7 +271,7 @@ async fn main() -> Result<Menu, Error> {
             for uid in status.list {
                 let person = people.get(&uid).cloned().unwrap_or_default();
                 let mut item = ContentItem::new(person.name.map_or_else(|| uid.to_string(), |name| name.to_string()))
-                    .href(format!("https://wurstmineberg.de/people/{}", uid))?
+                    .href(format!("https://wurstmineberg.de/people/{uid}"))?
                     .image(cache.get_img(&client, uid.clone(), config.zoom).await?)?;
                 if let Some(fav_color) = person.fav_color {
                     item = item.color(fav_color)?;
@@ -292,7 +295,7 @@ async fn main() -> Result<Menu, Error> {
     if !config.defer_specs.is_empty() {
         menu.push(MenuItem::Sep);
         for spec in config.defer_specs {
-            menu.push(ContentItem::new(format!("Defer Until {}", spec.join(" ")))
+            menu.push(ContentItem::new(format!("Defer Until {}", spec.iter().format(" ")))
                 .command(
                     Command::try_from(
                         vec![format!("{}", current_exe.display()), format!("defer")]

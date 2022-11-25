@@ -21,6 +21,7 @@ For an equivalent Windows app, see [wurstmineberg/systray](https://github.com/wu
 You can optionally configure the behavior of the plugin by creating a [JSON](https://json.org/) file at `bitbar/plugins/wurstmineberg.json` inside an [XDG](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) config directory. All entries are optional:
 
 * `deferSpecs`: An array of [timespecs](https://github.com/fenhl/timespec#readme), with each timespec stored as an array of strings. Adds menu items that when clicked hide the plugin until the specified time.
+* `ignoredPlayers`: An array of Wurstmineberg IDs and/or Discord snowflakes of players who should not be listed. To ignore a player who has both a Wurstmineberg ID and a Discord snowflake, list the Discord snowflake.
 * `showIfEmpty`: If `false`, the plugin is hidden entirely if the main world is running but no players are online on any world. Defaults to `false`.
 * `showIfOffline`: If `false`, the plugin is hidden entirely if the main world is not running and no players are online on any world. Defaults to `false`.
 * `singleColor`: If `true` and exactly one player is online, the plugin's icon and the “1” player count text are colored in that player's favorite color, as set in their Wurstmineberg preferences. Defaults to `true`.

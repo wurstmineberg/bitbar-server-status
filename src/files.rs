@@ -80,6 +80,8 @@ pub(crate) struct Config {
     #[serde(default)]
     pub(crate) defer_specs: Vec<Vec<String>>,
     #[serde(default)]
+    pub(crate) ignored_players: Vec<Uid>,
+    #[serde(default)]
     pub(crate) show_if_empty: bool,
     #[serde(default)]
     pub(crate) show_if_offline: bool,
@@ -107,6 +109,7 @@ impl Default for Config {
     fn default() -> Config {
         Config {
             defer_specs: Vec::default(),
+            ignored_players: Vec::default(),
             show_if_empty: false,
             show_if_offline: false,
             single_color: true,
