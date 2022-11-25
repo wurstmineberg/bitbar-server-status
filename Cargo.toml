@@ -4,6 +4,10 @@ version = "2.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2021"
 
+[profile.release]
+lto = true
+strip = true
+
 [dependencies]
 async-trait = "0.1"
 css-color-parser = "0.1.2"
