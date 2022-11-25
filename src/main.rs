@@ -61,7 +61,7 @@ enum Error {
     #[error(transparent)] Reqwest(#[from] reqwest::Error),
     #[error(transparent)] Timespec(#[from] timespec::Error),
     #[error(transparent)] Url(#[from] url::ParseError),
-    #[error(transparent)] Xdg(#[from] xdg_basedir::Error),
+    #[error(transparent)] Xdg(#[from] xdg::BaseDirectoriesError),
     #[error("BitBar command should have 1–6 parameters including the command name, but this one has {0}")]
     CommandLength(usize),
     #[error("given timespec matches no dates")]

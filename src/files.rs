@@ -24,6 +24,7 @@ use {
         de::Visitor,
     },
     serde_json::Value as Json,
+    xdg::BaseDirectories,
     crate::{
         AvatarInfo,
         Error,
@@ -93,10 +94,12 @@ pub(crate) struct Config {
 }
 
 impl Config {
-    pub(crate) fn load() -> Result<Config, Error> {
-        let dirs = xdg_basedir::get_config_home().into_iter().chain(xdg_basedir::get_config_dirs());
-        Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugins/wurstmineberg.json")).ok())
-            .next().map_or(Ok(Config::default()), serde_json::from_reader)?)
+    pub(crate) fn load() -> Result<Self, Error> {
+        Ok(if let Some(path) = BaseDirectories::new()?.find_config_file("bitbar/plugins/wurstmineberg.json") {
+            serde_json::from_reader(File::open(path)?)?
+        } else {
+            Self::default()
+        })
     }
 }
 
@@ -121,27 +124,17 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub(crate) fn load() -> Result<Data, Error> {
-        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
-        Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugin-cache/wurstmineberg.json")).ok())
-            .next().map_or(Ok(Data::default()), serde_json::from_reader)?)
+    pub(crate) fn load() -> Result<Self, Error> {
+        Ok(if let Some(path) = BaseDirectories::new()?.find_data_file("bitbar/plugin-cache/wurstmineberg.json") {
+            serde_json::from_reader(File::open(path)?)?
+        } else {
+            Self::default()
+        })
     }
 
     pub(crate) fn save(&mut self) -> Result<(), Error> {
-        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
-        for data_dir in dirs {
-            let data_path = data_dir.join("bitbar/plugin-cache/wurstmineberg.json");
-            if data_path.exists() {
-                if let Some(()) = File::create(data_path).ok()
-                    .and_then(|data_file| serde_json::to_writer_pretty(data_file, &self).ok())
-                {
-                    return Ok(())
-                }
-            }
-        }
-        let data_path = xdg_basedir::get_data_home()?.join("bitbar/plugin-cache/wurstmineberg.json");
-        let data_file = File::create(data_path)?;
-        serde_json::to_writer_pretty(data_file, &self)?;
+        let data_path = BaseDirectories::new()?.place_data_file("bitbar/plugin-cache/wurstmineberg.json")?;
+        serde_json::to_writer_pretty(File::create(data_path)?, &self)?;
         Ok(())
     }
 }
@@ -151,18 +144,18 @@ impl Data {
 pub(crate) struct Cache(BTreeMap<Uid, Vec<u8>>);
 
 impl Cache {
-    pub(crate) fn load() -> Result<Cache, Error> {
-        let path = xdg_basedir::get_cache_home()?.join("bitbar/plugin/wurstmineberg/avatars.json");
-        Ok(if path.exists() {
+    pub(crate) fn load() -> Result<Self, Error> {
+        Ok(if let Some(path) = BaseDirectories::new()?.find_cache_file("bitbar/plugin/wurstmineberg/avatars.json") {
             serde_json::from_reader(File::open(path)?)?
         } else {
-            Cache::default()
+            Self::default()
         })
     }
 
     pub(crate) fn save(self) -> Result<(), Error> {
-        let path = xdg_basedir::get_cache_home()?.join("bitbar/plugin/wurstmineberg/avatars.json");
-        Ok(serde_json::to_writer(File::create(path)?, &self)?)
+        let path = BaseDirectories::new()?.place_cache_file("bitbar/plugin/wurstmineberg/avatars.json")?;
+        serde_json::to_writer(File::create(path)?, &self)?;
+        Ok(())
     }
 
     pub(crate) async fn get_img(&mut self, client: &reqwest::Client, uid: Uid, _ /*zoom*/: u8) -> Result<Image, Error> {
