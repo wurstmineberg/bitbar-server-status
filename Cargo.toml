@@ -11,9 +11,9 @@ strip = true
 [dependencies]
 async-trait = "0.1"
 css-color-parser = "0.1.2"
-directories = "4"
+directories = "5"
 image = "0.24"
-itertools = "0.10"
+itertools = "0.11"
 mime = "0.3"
 notify-rust = "4"
 num-traits = "0.2"
