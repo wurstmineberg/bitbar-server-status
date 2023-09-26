@@ -37,7 +37,7 @@ You can optionally configure the behavior of the plugin by creating a [JSON](htt
 * `showIfOffline`: If `false`, the plugin is hidden entirely if the main world is not running and no players are online on any world. Defaults to `false`.
 * `singleColor`: If `true` and exactly one player is online, the plugin's icon and the “1” player count text are colored in that player's favorite color, as set in their Wurstmineberg preferences. Defaults to `true`.
 * `versionLink`: One of the following:
-    * `true`: Clicking on the version info menu item opens the [Minecraft Wiki](https://minecraft.fandom.com/) article for that version. This is the default.
+    * `true`: Clicking on the version info menu item opens the [Minecraft Wiki](https://minecraft.wiki/) article for that version. This is the default.
     * `"alt"`: Holding <kbd>⌥</kbd> turns the version info menu item into a link to the Minecraft Wiki article for that version.
     * `false`: The version info item is still displayed but cannot be clicked.
 * `versionMatch`: An object mapping Minecraft launcher profile IDs to Wurstmineberg world names. Each launcher profile's selected Minecraft version will be kept in sync with the version running on that world.

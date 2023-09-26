@@ -261,8 +261,8 @@ async fn main() -> Result<Menu, Error> {
             menu.push(if status.running {
                 let version_item = ContentItem::new(format!("Version: {}", status.version));
                 match config.version_link {
-                    VersionLink::Enabled => version_item.href(format!("https://minecraft.fandom.com/wiki/Java_Edition_{}", status.version))?,
-                    VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.fandom.com/wiki/Java_Edition_{}", status.version))?),
+                    VersionLink::Enabled => version_item.href(format!("https://minecraft.wiki/w/Java_Edition_{}", status.version))?,
+                    VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.wiki/w/Java_Edition_{}", status.version))?),
                     VersionLink::Disabled => version_item,
                 }.into()
             } else {
