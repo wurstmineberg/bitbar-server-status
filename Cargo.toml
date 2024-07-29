@@ -4,47 +4,35 @@ version = "2.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2021"
 
+[lints.rust]
+rust_2018_idioms = "deny"
+unsafe_code = "forbid"
+unused = "deny"
+unused_crate_dependencies = "deny"
+unused_import_braces = "deny"
+unused_lifetimes = "deny"
+unused_qualifications = "deny"
+warnings = "deny"
+
 [profile.release]
 lto = true
 strip = true
 
 [dependencies]
 async-trait = "0.1"
+bitbar = { version = "0.8", features = ["base64"] }
+chrono = { version = "0.4", features = ["serde"] }
 css-color-parser = "0.1.2"
 directories = "5"
 image = "0.24"
 itertools = "0.11"
 mime = "0.3"
 num-traits = "0.2"
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls", "trust-dns"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serenity = { version = "0.11", default-features = false }
 thiserror = "1"
+timespec = { git = "https://github.com/fenhl/rust-timespec", branch = "main" }
+url = { version = "2", features = ["serde"] }
 xdg = "2"
-
-[dependencies.bitbar]
-version = "0.8"
-features = ["base64"]
-
-[dependencies.chrono]
-version = "0.4"
-features = ["serde"]
-
-[dependencies.reqwest]
-version = "0.11"
-default-features = false
-features = ["json", "rustls-tls", "trust-dns"]
-
-[dependencies.serde]
-version = "1"
-features = ["derive"]
-
-[dependencies.serenity]
-version = "0.11"
-default-features = false
-
-[dependencies.timespec]
-git = "https://github.com/fenhl/rust-timespec"
-branch = "main"
-
-[dependencies.url]
-version = "2"
-features = ["serde"]
