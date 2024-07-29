@@ -10,7 +10,6 @@ use {
         },
         convert::Infallible,
         env,
-        fmt,
         io,
         time::Duration,
     },
@@ -28,7 +27,6 @@ use {
     image::ImageError,
     itertools::Itertools as _,
     mime::Mime,
-    notify_rust::Notification,
     serde::Deserialize,
     url::Url,
     crate::{
@@ -160,35 +158,6 @@ fn wurstpick(zoom: u8) -> Image {
         Image::template(&include_bytes!("../assets/wurstpick-2x.png")[..]).never_unwrap()
     } else {
         Image::template(&include_bytes!("../assets/wurstpick.png")[..]).never_unwrap()
-    }
-}
-
-fn notify(summary: impl fmt::Display, body: impl fmt::Display) {
-    //let _ = notify_rust::set_application(&notify_rust::get_bundle_identifier_or_default("BitBar")); //TODO uncomment when https://github.com/h4llow3En/mac-notification-sys/issues/8 is fixed
-    let _ = Notification::default()
-        .summary(&summary.to_string())
-        .sound_name("Funk")
-        .body(&body.to_string())
-        .show();
-}
-
-trait ResultExt {
-    type Ok;
-
-    fn notify(self, summary: impl fmt::Display) -> Self::Ok;
-}
-
-impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
-    type Ok = T;
-
-    fn notify(self, summary: impl fmt::Display) -> T {
-        match self {
-            Ok(t) => t,
-            Err(e) => {
-                notify(&summary, format!("{e:?}"));
-                panic!("{summary}: {e:?}");
-            }
-        }
     }
 }
 
