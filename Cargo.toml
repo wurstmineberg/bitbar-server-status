@@ -20,18 +20,18 @@ strip = true
 
 [dependencies]
 async-trait = "0.1"
-bitbar = { version = "0.8", features = ["base64"] }
+bitbar = { version = "0.9", features = ["base64"] }
 chrono = { version = "0.4", features = ["serde"] }
 css-color-parser = "0.1.2"
 directories = "5"
-image = "0.24"
-itertools = "0.11"
+image = "0.25"
+itertools = "0.13"
 mime = "0.3"
 num-traits = "0.2"
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls", "trust-dns"] }
+reqwest = { version = "0.12", default-features = false, features = ["charset", "hickory-dns", "http2", "json", "macos-system-configuration", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serenity = { version = "0.11", default-features = false }
+serenity = { version = "0.12", default-features = false }
 thiserror = "1"
 timespec = { git = "https://github.com/fenhl/rust-timespec", branch = "main" }
 url = { version = "2", features = ["serde"] }
