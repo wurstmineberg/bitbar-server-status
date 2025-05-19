@@ -97,7 +97,7 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn load() -> Result<Self, Error> {
-        Ok(if let Some(path) = BaseDirectories::new()?.find_config_file("bitbar/plugins/wurstmineberg.json") {
+        Ok(if let Some(path) = BaseDirectories::new().find_config_file("bitbar/plugins/wurstmineberg.json") {
             serde_json::from_reader(File::open(path)?)?
         } else {
             Self::default()
@@ -128,7 +128,7 @@ pub(crate) struct Data {
 
 impl Data {
     pub(crate) fn load() -> Result<Self, Error> {
-        Ok(if let Some(path) = BaseDirectories::new()?.find_data_file("bitbar/plugin-cache/wurstmineberg.json") {
+        Ok(if let Some(path) = BaseDirectories::new().find_data_file("bitbar/plugin-cache/wurstmineberg.json") {
             serde_json::from_reader(File::open(path)?)?
         } else {
             Self::default()
@@ -136,7 +136,7 @@ impl Data {
     }
 
     pub(crate) fn save(&mut self) -> Result<(), Error> {
-        let data_path = BaseDirectories::new()?.place_data_file("bitbar/plugin-cache/wurstmineberg.json")?;
+        let data_path = BaseDirectories::new().place_data_file("bitbar/plugin-cache/wurstmineberg.json")?;
         serde_json::to_writer_pretty(File::create(data_path)?, &self)?;
         Ok(())
     }
@@ -148,7 +148,7 @@ pub(crate) struct Cache(BTreeMap<Uid, Vec<u8>>);
 
 impl Cache {
     pub(crate) fn load() -> Result<Self, Error> {
-        Ok(if let Some(path) = BaseDirectories::new()?.find_cache_file("bitbar/plugin/wurstmineberg/avatars.json") {
+        Ok(if let Some(path) = BaseDirectories::new().find_cache_file("bitbar/plugin/wurstmineberg/avatars.json") {
             serde_json::from_reader(File::open(path)?)?
         } else {
             Self::default()
@@ -156,7 +156,7 @@ impl Cache {
     }
 
     pub(crate) fn save(self) -> Result<(), Error> {
-        let path = BaseDirectories::new()?.place_cache_file("bitbar/plugin/wurstmineberg/avatars.json")?;
+        let path = BaseDirectories::new().place_cache_file("bitbar/plugin/wurstmineberg/avatars.json")?;
         serde_json::to_writer(File::create(path)?, &self)?;
         Ok(())
     }
