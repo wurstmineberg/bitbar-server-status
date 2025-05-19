@@ -2,7 +2,7 @@
 name = "bitbar-wurstmineberg-status"
 version = "2.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
-edition = "2021"
+edition = "2024"
 
 [lints.rust]
 rust_2018_idioms = "deny"
