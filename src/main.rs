@@ -66,6 +66,8 @@ enum Error {
     InvalidMime(Mime),
     #[error("could not find your user folder")]
     MissingHomeDir,
+    #[error("attempted to check version of modded Minecraft world")]
+    ModdedVersion,
     #[error("no profile named “{0}” in launcher data")]
     UnknownLauncherProfile(String),
     #[error("unknown world name “{1}” in versionMatch config for profile {0}")]
@@ -109,7 +111,7 @@ struct Status {
     #[serde(default)]
     list: Vec<Uid>,
     running: bool,
-    version: String,
+    version: Option<String>,
 }
 
 impl Status {
@@ -193,7 +195,8 @@ async fn main() -> Result<Menu, Error> {
         let mut modified = false;
         for (profile_id, world_name) in config.version_match {
             let launcher_profile = launcher_data.profiles.get_mut(&profile_id).ok_or_else(|| Error::UnknownLauncherProfile(profile_id.clone()))?;
-            let world_version = &statuses.get(&world_name).ok_or_else(|| Error::UnknownWorldName(profile_id, world_name))?.version;
+            let world_version = statuses.get(&world_name).ok_or_else(|| Error::UnknownWorldName(profile_id, world_name))?
+                .version.as_ref().ok_or(Error::ModdedVersion)?;
             if launcher_profile.last_version_id != *world_version {
                 launcher_profile.last_version_id = world_version.clone();
                 modified = true;
@@ -226,12 +229,16 @@ async fn main() -> Result<Menu, Error> {
             menu.push(MenuItem::Sep);
             menu.push(MenuItem::new(world_name));
             menu.push(if status.running {
-                let version_item = ContentItem::new(format!("Version: {}", status.version));
-                match config.version_link {
-                    VersionLink::Enabled => version_item.href(format!("https://minecraft.wiki/w/Java_Edition_{}", status.version))?,
-                    VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {}", status.version)).color("blue")?.href(format!("https://minecraft.wiki/w/Java_Edition_{}", status.version))?),
-                    VersionLink::Disabled => version_item,
-                }.into()
+                if let Some(version) = status.version {
+                    let version_item = ContentItem::new(format!("Version: {version}"));
+                    match config.version_link {
+                        VersionLink::Enabled => version_item.href(format!("https://minecraft.wiki/w/Java_Edition_{version}"))?,
+                        VersionLink::Alternate => version_item.alt(ContentItem::new(format!("Version: {version}")).color("blue")?.href(format!("https://minecraft.wiki/w/Java_Edition_{version}"))?),
+                        VersionLink::Disabled => version_item,
+                    }.into()
+                } else {
+                    MenuItem::new("Modded Server, Unknown Version")
+                }
             } else {
                 MenuItem::new("Offline") //TODO add link to Discord channel?
             });
