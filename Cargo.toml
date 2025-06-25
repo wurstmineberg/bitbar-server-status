@@ -36,4 +36,5 @@ serenity = { version = "0.12", default-features = false }
 thiserror = "2"
 timespec = { git = "https://github.com/fenhl/rust-timespec", branch = "main" }
 url = { version = "2", features = ["serde"] }
+wheel = { git = "https://github.com/fenhl/wheel", branch = "main", features = ["reqwest", "serde_json"] }
 xdg = "3"

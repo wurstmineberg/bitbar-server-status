@@ -26,6 +26,7 @@ use {
     mime::Mime,
     serde::Deserialize,
     url::Url,
+    wheel::traits::ReqwestResponseExt as _,
     crate::{
         files::{
             Cache,
@@ -56,6 +57,7 @@ enum Error {
     #[error(transparent)] Reqwest(#[from] reqwest::Error),
     #[error(transparent)] Timespec(#[from] timespec::Error),
     #[error(transparent)] Url(#[from] url::ParseError),
+    #[error(transparent)] Wheel(#[from] wheel::Error),
     #[error("BitBar command should have 1–6 parameters including the command name, but this one has {0}")]
     CommandLength(usize),
     #[error("given timespec matches no dates")]
@@ -116,8 +118,8 @@ impl Status {
             client.get("https://wurstmineberg.de/api/v3/server/worlds.json")
                 .query(&[("list", "1")])
                 .send().await?
-                .error_for_status()?
-                .json().await?
+                .detailed_error_for_status().await?
+                .json_with_text_in_error().await?
         )
     }
 }
@@ -132,8 +134,8 @@ impl People {
         Ok(
             client.get("https://wurstmineberg.de/api/v3/people.json")
                 .send().await?
-                .error_for_status()?
-                .json().await?
+                .detailed_error_for_status().await?
+                .json_with_text_in_error().await?
         )
     }
 

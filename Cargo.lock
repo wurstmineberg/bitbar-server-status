@@ -453,6 +453,7 @@ dependencies = [
  "thiserror 2.0.12",
  "timespec",
  "url",
+ "wheel",
  "xdg",
 ]
 
@@ -2860,6 +2861,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_json_path_to_error"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "131f9e72e503904612f46028049e1c873b7b4d725baccedf8a00e3e67904cb1a"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+]
+
+[[package]]
+name = "serde_path_to_error"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59fab13f937fa393d08645bf3a84bdfe86e296747b506ada67bb15f10f218b2a"
+dependencies = [
+ "itoa",
+ "serde",
+]
+
+[[package]]
 name = "serde_repr"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3686,6 +3708,10 @@ dependencies = [
  "console-subscriber",
  "futures",
  "itertools 0.14.0",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_json_path_to_error",
  "thiserror 2.0.12",
  "tokio",
  "wheel-derive",
