@@ -1,3 +1,6 @@
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use {
     std::{
         borrow::Cow,
@@ -176,6 +179,7 @@ fn defer(timespec: Vec<String>) -> Result<(), Error> {
 )]
 async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
+    let _ = rustls::crypto::ring::default_provider().install_default();
     let client = reqwest::Client::builder()
         .user_agent(concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
